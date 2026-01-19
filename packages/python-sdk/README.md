@@ -13,9 +13,8 @@ pip install blindfold-sdk
 
 ### 2. Get Blindfold API key
 
-1. Sign up to Blindfold here.
 1. Sign up to Blindfold [here](https://www.blindfold.dev/).
-3. Get your API key [here](https://app.blindfold.dev/api-keys).
+2. Get your API key [here](https://app.blindfold.dev/api-keys).
 3. Set environment variable with your API key
 ```
 BLINDFOLD_API_KEY=sk-***
