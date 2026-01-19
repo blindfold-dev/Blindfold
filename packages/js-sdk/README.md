@@ -4,14 +4,11 @@ The official JavaScript/TypeScript SDK for Blindfold - The Privacy API for AI.
 
 Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending it to LLMs or third-party services.
 
-## Prerequisites
+## How to use it
 
-To use this SDK, you need a Blindfold API key.
+### 1. Install SDK
 
-1.  **Register** for a free account at [https://app.blindfold.dev/](https://app.blindfold.dev/).
-2.  **Create an API Key** in the dashboard at [https://app.blindfold.dev/api-keys](https://app.blindfold.dev/api-keys).
-
-## Installation
+Javascript/ Typescript
 
 ```bash
 npm install @blindfold/sdk
@@ -21,7 +18,21 @@ yarn add @blindfold/sdk
 pnpm add @blindfold/sdk
 ```
 
-## Usage
+Python SDK
+
+```bash
+pip install blindfold-sdk
+```
+
+### 2. Get Blindfold API key
+
+1. Sign up to Blindfold here.
+1. Sign up to Blindfold [here](https://www.blindfold.dev/).
+3. Get your API key [here](https://app.blindfold.dev/api-keys).
+3. Set environment variable with your API key
+```
+BLINDFOLD_API_KEY=sk-***
+```     
 
 ### Initialization
 

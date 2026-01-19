@@ -3,7 +3,7 @@ Blindfold is an enterprise AI Gateway with automatic PII detection and anonymiza
 
 ## How to use it
 
-### 1. Intall SDK
+### 1. Install SDK
 
 Javascript/ Typescript
 
