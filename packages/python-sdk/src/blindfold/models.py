@@ -1,20 +1,22 @@
 """Pydantic models for API responses"""
 
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DetectedEntity(BaseModel):
     """Detected entity in text"""
 
-    entity_type: str = Field(..., description="Entity type (e.g., PERSON, EMAIL_ADDRESS)")
+    entity_type: str = Field(
+        ..., description='Entity type (e.g., "person", "email address", "phone number")'
+    )
     text: str = Field(..., description="Original text of the entity")
     start: int = Field(..., description="Start index in text")
     end: int = Field(..., description="End index in text")
     score: float = Field(..., description="Confidence score (0-1)")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class TokenizeResponse(BaseModel):
@@ -29,8 +31,18 @@ class TokenizeResponse(BaseModel):
     )
     entities_count: int = Field(..., description="Count of detected entities")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
+
+
+class DetectResponse(BaseModel):
+    """Response from detect endpoint"""
+
+    detected_entities: List[DetectedEntity] = Field(
+        ..., description="List of detected entities"
+    )
+    entities_count: int = Field(..., description="Count of detected entities")
+
+    model_config = ConfigDict(frozen=True)
 
 
 class DetokenizeResponse(BaseModel):
@@ -39,8 +51,7 @@ class DetokenizeResponse(BaseModel):
     text: str = Field(..., description="Original text with restored values")
     replacements_made: int = Field(..., description="Number of replacements made")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class RedactResponse(BaseModel):
@@ -52,8 +63,7 @@ class RedactResponse(BaseModel):
     )
     entities_count: int = Field(..., description="Number of entities redacted")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class MaskResponse(BaseModel):
@@ -65,8 +75,7 @@ class MaskResponse(BaseModel):
     )
     entities_count: int = Field(..., description="Number of entities masked")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class SynthesizeResponse(BaseModel):
@@ -78,8 +87,7 @@ class SynthesizeResponse(BaseModel):
     )
     entities_count: int = Field(..., description="Number of entities synthesized")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class HashResponse(BaseModel):
@@ -91,8 +99,7 @@ class HashResponse(BaseModel):
     )
     entities_count: int = Field(..., description="Number of entities hashed")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class EncryptResponse(BaseModel):
@@ -104,8 +111,7 @@ class EncryptResponse(BaseModel):
     )
     entities_count: int = Field(..., description="Number of entities encrypted")
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class APIErrorResponse(BaseModel):

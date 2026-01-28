@@ -5,14 +5,24 @@ build-backend = "hatchling.build"
 [project]
 name = "blindfold-sdk"
 version = "1.0.0"
-description = "Python SDK for Blindfold Gateway"
+description = "Python SDK for Blindfold Gateway - Privacy API for AI"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 authors = [
     { name = "Blindfold Team" }
 ]
-keywords = ["blindfold", "tokenization", "pii", "security"]
+keywords = [
+    "blindfold",
+    "tokenization",
+    "pii",
+    "security",
+    "privacy",
+    "gdpr",
+    "hipaa",
+    "llm",
+    "ai"
+]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -23,6 +33,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Security",
 ]
 dependencies = [
     "httpx>=0.25.0",
@@ -33,27 +45,103 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
+    "isort>=5.12.0",
 ]
+
+[project.urls]
+Homepage = "https://blindfold.dev"
+Documentation = "https://docs.blindfold.dev"
+Repository = "https://github.com/blindfold-dev/blindfold-github"
+Issues = "https://github.com/blindfold-dev/blindfold-github/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/blindfold"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/blindfold/py.typed" = "blindfold/py.typed"
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--strict-markers",
+    "--cov=blindfold",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src/blindfold"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
 
 [tool.black]
 line-length = 88
 target-version = ["py38", "py39", "py310", "py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.git
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
 
 [tool.ruff]
 line-length = 88
 target-version = "py38"
 
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501", # line too long, handled by black
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false
+show_error_codes = true
+strict = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

@@ -1,11 +1,22 @@
 """Blindfold client for tokenization and detokenization"""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
 import httpx
 from pydantic import ValidationError
 
-from .models import TokenizeResponse, DetokenizeResponse, RedactResponse, MaskResponse, SynthesizeResponse, HashResponse, EncryptResponse, APIErrorResponse
-from .errors import AuthenticationError, APIError, NetworkError
+from .errors import APIError, AuthenticationError, NetworkError
+from .models import (
+    APIErrorResponse,
+    DetectResponse,
+    DetokenizeResponse,
+    EncryptResponse,
+    HashResponse,
+    MaskResponse,
+    RedactResponse,
+    SynthesizeResponse,
+    TokenizeResponse,
+)
 
 DEFAULT_BASE_URL = "https://api.blindfold.dev/api/public/v1"
 
@@ -46,7 +57,7 @@ class Blindfold:
             headers = {"X-API-Key": self.api_key}
             if self.user_id:
                 headers["X-Blindfold-User-Id"] = self.user_id
-                
+
             self._client = httpx.Client(
                 base_url=self.base_url,
                 timeout=self.timeout,
@@ -84,9 +95,7 @@ class Blindfold:
             try:
                 response_body = response.json()
                 error_data = APIErrorResponse(**response_body)
-                error_message = (
-                    error_data.detail or error_data.message or error_message
-                )
+                error_message = error_data.detail or error_data.message or error_message
             except Exception:
                 # If we can't parse the error response, use the status text
                 error_message = f"{error_message}: {response.text}"
@@ -94,13 +103,14 @@ class Blindfold:
             raise APIError(error_message, response.status_code, response_body)
 
         try:
-            return response.json()
+            result: Dict[str, Any] = response.json()
+            return result
         except Exception as e:
             raise APIError(
                 f"Failed to parse response: {str(e)}",
                 response.status_code,
                 response.text,
-            )
+            ) from e
 
     def _request(
         self,
@@ -119,15 +129,18 @@ class Blindfold:
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             raise NetworkError(
                 f"Network request failed. Please check your connection and the API URL: {str(e)}"
-            )
+            ) from e
         except (AuthenticationError, APIError):
             raise
         except Exception as e:
-            raise NetworkError(f"Unexpected error: {str(e)}")
+            raise NetworkError(f"Unexpected error: {str(e)}") from e
 
     def tokenize(
         self,
         text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> TokenizeResponse:
         """
@@ -135,7 +148,10 @@ class Blindfold:
 
         Args:
             text: Text to tokenize
-            config: Optional configuration parameters
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             TokenizeResponse with tokenized text and mapping
@@ -145,7 +161,13 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text}
+        payload: Dict[str, Any] = {"text": text}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -154,7 +176,57 @@ class Blindfold:
         try:
             return TokenizeResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
+
+    def detect(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> DetectResponse:
+        """
+        Detect PII in text without modifying it.
+
+        Returns only the detected entities with their types, positions,
+        and confidence scores. The original text is not transformed.
+
+        Args:
+            text: Text to analyze for PII
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
+
+        Returns:
+            DetectResponse with detected entities
+
+        Raises:
+            AuthenticationError: If authentication fails
+            APIError: If API request fails
+            NetworkError: If network request fails
+        """
+        payload: Dict[str, Any] = {"text": text}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
+        if config:
+            payload.update(config)
+
+        response_data = self._request("POST", "/detect", json=payload)
+
+        try:
+            return DetectResponse(**response_data)
+        except ValidationError as e:
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     def detokenize(
         self,
@@ -164,33 +236,39 @@ class Blindfold:
         """
         Detokenize text by replacing tokens with original values.
 
+        This method performs detokenization CLIENT-SIDE for better performance,
+        security, and to work offline. No API call is made.
+
         Args:
             text: Tokenized text
             mapping: Token mapping from tokenize response
 
         Returns:
             DetokenizeResponse with original text
-
-        Raises:
-            AuthenticationError: If authentication fails
-            APIError: If API request fails
-            NetworkError: If network request fails
         """
-        response_data = self._request(
-            "POST",
-            "/detokenize",
-            json={"text": text, "mapping": mapping},
-        )
+        result_text = text
+        replacements_made = 0
 
-        try:
-            return DetokenizeResponse(**response_data)
-        except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+        # Sort tokens by length (longest first) to avoid partial replacements
+        sorted_tokens = sorted(mapping.keys(), key=len, reverse=True)
+
+        for token in sorted_tokens:
+            original_value = mapping[token]
+            # Count occurrences
+            count = result_text.count(token)
+            if count > 0:
+                result_text = result_text.replace(token, original_value)
+                replacements_made += count
+
+        return DetokenizeResponse(text=result_text, replacements_made=replacements_made)
 
     def redact(
         self,
         text: str,
         masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> RedactResponse:
         """
@@ -201,7 +279,10 @@ class Blindfold:
         Args:
             text: Text to redact
             masking_char: Character(s) to use for masking (default: "*")
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             RedactResponse with redacted text and detected entities
@@ -211,7 +292,13 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text, "masking_char": masking_char}
+        payload: Dict[str, Any] = {"text": text, "masking_char": masking_char}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -220,7 +307,9 @@ class Blindfold:
         try:
             return RedactResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     def mask(
         self,
@@ -228,6 +317,9 @@ class Blindfold:
         chars_to_show: int = 3,
         from_end: bool = False,
         masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> MaskResponse:
         """
@@ -240,7 +332,10 @@ class Blindfold:
             chars_to_show: Number of characters to show (default: 3)
             from_end: Show characters from the end instead of start (default: False)
             masking_char: Character(s) to use for masking (default: "*")
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             MaskResponse with masked text and detected entities
@@ -250,12 +345,18 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {
+        payload: Dict[str, Any] = {
             "text": text,
             "chars_to_show": chars_to_show,
             "from_end": from_end,
             "masking_char": masking_char,
         }
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -264,12 +365,17 @@ class Blindfold:
         try:
             return MaskResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     def synthesize(
         self,
         text: str,
         language: str = "en",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> SynthesizeResponse:
         """
@@ -281,7 +387,10 @@ class Blindfold:
         Args:
             text: Text to synthesize
             language: Language code for synthetic data generation (default: "en")
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             SynthesizeResponse with synthetic text and detected entities
@@ -291,7 +400,13 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text, "language": language}
+        payload: Dict[str, Any] = {"text": text, "language": language}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -300,7 +415,9 @@ class Blindfold:
         try:
             return SynthesizeResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     def hash(
         self,
@@ -308,6 +425,9 @@ class Blindfold:
         hash_type: str = "sha256",
         hash_prefix: str = "HASH_",
         hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> HashResponse:
         """
@@ -321,7 +441,10 @@ class Blindfold:
             hash_type: Hash algorithm to use (default: "sha256")
             hash_prefix: Prefix to add before hash value (default: "HASH_")
             hash_length: Length of hash to display (default: 16)
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             HashResponse with hashed text and detected entities
@@ -331,12 +454,18 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {
+        payload: Dict[str, Any] = {
             "text": text,
             "hash_type": hash_type,
             "hash_prefix": hash_prefix,
             "hash_length": hash_length,
         }
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -345,12 +474,17 @@ class Blindfold:
         try:
             return HashResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     def encrypt(
         self,
         text: str,
         encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> EncryptResponse:
         """
@@ -362,7 +496,10 @@ class Blindfold:
         Args:
             text: Text to encrypt
             encryption_key: Optional encryption key (if not provided, tenant key will be used)
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             EncryptResponse with encrypted text and detected entities
@@ -372,9 +509,15 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text}
+        payload: Dict[str, Any] = {"text": text}
         if encryption_key:
             payload["encryption_key"] = encryption_key
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -383,7 +526,9 @@ class Blindfold:
         try:
             return EncryptResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
 
 class AsyncBlindfold:
@@ -422,7 +567,7 @@ class AsyncBlindfold:
             headers = {"X-API-Key": self.api_key}
             if self.user_id:
                 headers["X-Blindfold-User-Id"] = self.user_id
-                
+
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=self.timeout,
@@ -460,9 +605,7 @@ class AsyncBlindfold:
             try:
                 response_body = response.json()
                 error_data = APIErrorResponse(**response_body)
-                error_message = (
-                    error_data.detail or error_data.message or error_message
-                )
+                error_message = error_data.detail or error_data.message or error_message
             except Exception:
                 # If we can't parse the error response, use the status text
                 error_message = f"{error_message}: {response.text}"
@@ -470,13 +613,14 @@ class AsyncBlindfold:
             raise APIError(error_message, response.status_code, response_body)
 
         try:
-            return response.json()
+            result: Dict[str, Any] = response.json()
+            return result
         except Exception as e:
             raise APIError(
                 f"Failed to parse response: {str(e)}",
                 response.status_code,
                 response.text,
-            )
+            ) from e
 
     async def _request(
         self,
@@ -495,15 +639,18 @@ class AsyncBlindfold:
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             raise NetworkError(
                 f"Network request failed. Please check your connection and the API URL: {str(e)}"
-            )
+            ) from e
         except (AuthenticationError, APIError):
             raise
         except Exception as e:
-            raise NetworkError(f"Unexpected error: {str(e)}")
+            raise NetworkError(f"Unexpected error: {str(e)}") from e
 
     async def tokenize(
         self,
         text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> TokenizeResponse:
         """
@@ -511,7 +658,10 @@ class AsyncBlindfold:
 
         Args:
             text: Text to tokenize
-            config: Optional configuration parameters
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             TokenizeResponse with tokenized text and mapping
@@ -521,7 +671,13 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text}
+        payload: Dict[str, Any] = {"text": text}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -530,7 +686,57 @@ class AsyncBlindfold:
         try:
             return TokenizeResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
+
+    async def detect(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> DetectResponse:
+        """
+        Detect PII in text without modifying it.
+
+        Returns only the detected entities with their types, positions,
+        and confidence scores. The original text is not transformed.
+
+        Args:
+            text: Text to analyze for PII
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
+
+        Returns:
+            DetectResponse with detected entities
+
+        Raises:
+            AuthenticationError: If authentication fails
+            APIError: If API request fails
+            NetworkError: If network request fails
+        """
+        payload: Dict[str, Any] = {"text": text}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
+        if config:
+            payload.update(config)
+
+        response_data = await self._request("POST", "/detect", json=payload)
+
+        try:
+            return DetectResponse(**response_data)
+        except ValidationError as e:
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     async def detokenize(
         self,
@@ -540,33 +746,39 @@ class AsyncBlindfold:
         """
         Detokenize text by replacing tokens with original values.
 
+        This method performs detokenization CLIENT-SIDE for better performance,
+        security, and to work offline. No API call is made.
+
         Args:
             text: Tokenized text
             mapping: Token mapping from tokenize response
 
         Returns:
             DetokenizeResponse with original text
-
-        Raises:
-            AuthenticationError: If authentication fails
-            APIError: If API request fails
-            NetworkError: If network request fails
         """
-        response_data = await self._request(
-            "POST",
-            "/detokenize",
-            json={"text": text, "mapping": mapping},
-        )
+        result_text = text
+        replacements_made = 0
 
-        try:
-            return DetokenizeResponse(**response_data)
-        except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+        # Sort tokens by length (longest first) to avoid partial replacements
+        sorted_tokens = sorted(mapping.keys(), key=len, reverse=True)
+
+        for token in sorted_tokens:
+            original_value = mapping[token]
+            # Count occurrences
+            count = result_text.count(token)
+            if count > 0:
+                result_text = result_text.replace(token, original_value)
+                replacements_made += count
+
+        return DetokenizeResponse(text=result_text, replacements_made=replacements_made)
 
     async def redact(
         self,
         text: str,
         masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> RedactResponse:
         """
@@ -577,7 +789,10 @@ class AsyncBlindfold:
         Args:
             text: Text to redact
             masking_char: Character(s) to use for masking (default: "*")
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             RedactResponse with redacted text and detected entities
@@ -587,7 +802,13 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text, "masking_char": masking_char}
+        payload: Dict[str, Any] = {"text": text, "masking_char": masking_char}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -596,7 +817,9 @@ class AsyncBlindfold:
         try:
             return RedactResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     async def mask(
         self,
@@ -604,6 +827,9 @@ class AsyncBlindfold:
         chars_to_show: int = 3,
         from_end: bool = False,
         masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> MaskResponse:
         """
@@ -616,7 +842,10 @@ class AsyncBlindfold:
             chars_to_show: Number of characters to show (default: 3)
             from_end: Show characters from the end instead of start (default: False)
             masking_char: Character(s) to use for masking (default: "*")
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             MaskResponse with masked text and detected entities
@@ -626,12 +855,18 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {
+        payload: Dict[str, Any] = {
             "text": text,
             "chars_to_show": chars_to_show,
             "from_end": from_end,
             "masking_char": masking_char,
         }
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -640,12 +875,17 @@ class AsyncBlindfold:
         try:
             return MaskResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     async def synthesize(
         self,
         text: str,
         language: str = "en",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> SynthesizeResponse:
         """
@@ -657,7 +897,10 @@ class AsyncBlindfold:
         Args:
             text: Text to synthesize
             language: Language code for synthetic data generation (default: "en")
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             SynthesizeResponse with synthetic text and detected entities
@@ -667,7 +910,13 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text, "language": language}
+        payload: Dict[str, Any] = {"text": text, "language": language}
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -676,7 +925,9 @@ class AsyncBlindfold:
         try:
             return SynthesizeResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     async def hash(
         self,
@@ -684,6 +935,9 @@ class AsyncBlindfold:
         hash_type: str = "sha256",
         hash_prefix: str = "HASH_",
         hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> HashResponse:
         """
@@ -697,7 +951,10 @@ class AsyncBlindfold:
             hash_type: Hash algorithm to use (default: "sha256")
             hash_prefix: Prefix to add before hash value (default: "HASH_")
             hash_length: Length of hash to display (default: 16)
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             HashResponse with hashed text and detected entities
@@ -707,12 +964,18 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {
+        payload: Dict[str, Any] = {
             "text": text,
             "hash_type": hash_type,
             "hash_prefix": hash_prefix,
             "hash_length": hash_length,
         }
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -721,12 +984,17 @@ class AsyncBlindfold:
         try:
             return HashResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
 
     async def encrypt(
         self,
         text: str,
         encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> EncryptResponse:
         """
@@ -738,7 +1006,10 @@ class AsyncBlindfold:
         Args:
             text: Text to encrypt
             encryption_key: Optional encryption key (if not provided, tenant key will be used)
-            config: Optional configuration parameters (e.g., entities list)
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use (e.g., 'gdpr_eu', 'hipaa_us', 'basic')
+            config: Optional additional configuration parameters
 
         Returns:
             EncryptResponse with encrypted text and detected entities
@@ -748,9 +1019,15 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
-        payload = {"text": text}
+        payload: Dict[str, Any] = {"text": text}
         if encryption_key:
             payload["encryption_key"] = encryption_key
+        if entities is not None:
+            payload["entities"] = entities
+        if score_threshold is not None:
+            payload["score_threshold"] = score_threshold
+        if policy is not None:
+            payload["policy"] = policy
         if config:
             payload.update(config)
 
@@ -759,4 +1036,6 @@ class AsyncBlindfold:
         try:
             return EncryptResponse(**response_data)
         except ValidationError as e:
-            raise APIError(f"Invalid response format: {str(e)}", 200, response_data)
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
