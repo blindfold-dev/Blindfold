@@ -1,15 +1,15 @@
 """Blindfold Python SDK - Client library for Blindfold Gateway API"""
 
-from .client import Blindfold, AsyncBlindfold
+from .client import AsyncBlindfold, Blindfold
 from .errors import (
-    BlindfoldError,
-    AuthenticationError,
     APIError,
+    AuthenticationError,
+    BlindfoldError,
     NetworkError,
 )
-from .models import TokenizeResponse, DetokenizeResponse, DetectedEntity
+from .models import DetectedEntity, DetectResponse, DetokenizeResponse, TokenizeResponse
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "Blindfold",
@@ -19,6 +19,7 @@ __all__ = [
     "APIError",
     "NetworkError",
     "TokenizeResponse",
+    "DetectResponse",
     "DetokenizeResponse",
     "DetectedEntity",
 ]

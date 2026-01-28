@@ -18,13 +18,37 @@ export interface TokenizeConfig {
   entities?: string[]
   /** Minimum confidence score for entity detection (0.0-1.0) */
   score_threshold?: number
+  /** Policy name to use for detection configuration (e.g., 'gdpr_eu', 'hipaa_us', 'basic') */
+  policy?: string
+}
+
+/**
+ * Configuration options for detection (no text transformation)
+ */
+export interface DetectConfig {
+  /** List of entities to detect */
+  entities?: string[]
+  /** Minimum confidence score for entity detection (0.0-1.0) */
+  score_threshold?: number
+  /** Policy name to use for detection configuration (e.g., 'gdpr_eu', 'hipaa_us', 'basic') */
+  policy?: string
+}
+
+/**
+ * Response from detect endpoint
+ */
+export interface DetectResponse {
+  /** List of detected entities */
+  detected_entities: DetectedEntity[]
+  /** Count of detected entities */
+  entities_count: number
 }
 
 /**
  * Detected entity information
  */
 export interface DetectedEntity {
-  /** Entity type (e.g., PERSON, EMAIL_ADDRESS) */
+  /** Entity type (e.g., "person", "email address", "phone number") */
   entity_type: string
   /** Original text of the entity */
   text: string
@@ -70,6 +94,8 @@ export interface RedactConfig {
   entities?: string[]
   /** Minimum confidence score for entity detection (0.0-1.0) */
   score_threshold?: number
+  /** Policy name to use for detection configuration (e.g., 'gdpr_eu', 'hipaa_us', 'basic') */
+  policy?: string
 }
 
 /**
@@ -98,6 +124,8 @@ export interface MaskConfig {
   entities?: string[]
   /** Minimum confidence score for entity detection (0.0-1.0) */
   score_threshold?: number
+  /** Policy name to use for detection configuration (e.g., 'gdpr_eu', 'hipaa_us', 'basic') */
+  policy?: string
 }
 
 /**
@@ -122,6 +150,8 @@ export interface SynthesizeConfig {
   entities?: string[]
   /** Minimum confidence score for entity detection (0.0-1.0) */
   score_threshold?: number
+  /** Policy name to use for detection configuration (e.g., 'gdpr_eu', 'hipaa_us', 'basic') */
+  policy?: string
 }
 
 /**
@@ -150,6 +180,8 @@ export interface HashConfig {
   entities?: string[]
   /** Minimum confidence score for entity detection (0.0-1.0) */
   score_threshold?: number
+  /** Policy name to use for detection configuration (e.g., 'gdpr_eu', 'hipaa_us', 'basic') */
+  policy?: string
 }
 
 /**
@@ -174,6 +206,8 @@ export interface EncryptConfig {
   entities?: string[]
   /** Minimum confidence score for entity detection (0.0-1.0) */
   score_threshold?: number
+  /** Policy name to use for detection configuration (e.g., 'gdpr_eu', 'hipaa_us', 'basic') */
+  policy?: string
 }
 
 /**

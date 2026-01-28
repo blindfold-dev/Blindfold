@@ -25,9 +25,9 @@ export class AuthenticationError extends BlindfoldError {
  */
 export class APIError extends BlindfoldError {
   statusCode: number
-  responseBody?: any
+  responseBody?: unknown
 
-  constructor(message: string, statusCode: number, responseBody?: any) {
+  constructor(message: string, statusCode: number, responseBody?: unknown) {
     super(message)
     this.name = 'APIError'
     this.statusCode = statusCode

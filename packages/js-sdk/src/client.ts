@@ -1,5 +1,7 @@
 import type {
   BlindfoldConfig,
+  DetectConfig,
+  DetectResponse,
   TokenizeConfig,
   TokenizeResponse,
   DetokenizeResponse,
@@ -43,7 +45,7 @@ export class Blindfold {
   private async request<T>(
     endpoint: string,
     method: string,
-    body?: any
+    body?: Record<string, unknown>
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
 
@@ -65,15 +67,13 @@ export class Blindfold {
 
       // Handle authentication errors
       if (response.status === 401 || response.status === 403) {
-        throw new AuthenticationError(
-          'Authentication failed. Please check your API key.'
-        )
+        throw new AuthenticationError('Authentication failed. Please check your API key.')
       }
 
       // Handle other error responses
       if (!response.ok) {
         let errorMessage = `API request failed with status ${response.status}`
-        let responseBody: any
+        let responseBody: unknown
 
         try {
           responseBody = await response.json()
@@ -90,10 +90,7 @@ export class Blindfold {
       return (await response.json()) as T
     } catch (error) {
       // Re-throw our custom errors
-      if (
-        error instanceof AuthenticationError ||
-        error instanceof APIError
-      ) {
+      if (error instanceof AuthenticationError || error instanceof APIError) {
         throw error
       }
 
@@ -105,9 +102,7 @@ export class Blindfold {
       }
 
       // Handle other errors
-      throw new NetworkError(
-        error instanceof Error ? error.message : 'Unknown error occurred'
-      )
+      throw new NetworkError(error instanceof Error ? error.message : 'Unknown error occurred')
     }
   }
 
@@ -117,10 +112,7 @@ export class Blindfold {
    * @param config - Optional configuration
    * @returns Promise with tokenized text and mapping
    */
-  async tokenize(
-    text: string,
-    config?: TokenizeConfig
-  ): Promise<TokenizeResponse> {
+  async tokenize(text: string, config?: TokenizeConfig): Promise<TokenizeResponse> {
     return this.request<TokenizeResponse>('/tokenize', 'POST', {
       text,
       ...config,
@@ -128,19 +120,54 @@ export class Blindfold {
   }
 
   /**
+   * Detect PII in text without modifying it
+   *
+   * Returns only the detected entities with their types, positions,
+   * and confidence scores. The original text is not transformed.
+   *
+   * @param text - Text to analyze for PII
+   * @param config - Optional configuration (entities, score_threshold, policy)
+   * @returns Promise with detected entities
+   */
+  async detect(text: string, config?: DetectConfig): Promise<DetectResponse> {
+    return this.request<DetectResponse>('/detect', 'POST', {
+      text,
+      ...config,
+    })
+  }
+
+  /**
    * Detokenize text by replacing tokens with original values
+   *
+   * This method performs detokenization CLIENT-SIDE for better performance,
+   * security, and to work offline. No API call is made.
+   *
    * @param text - Tokenized text
    * @param mapping - Token mapping from tokenize response
-   * @returns Promise with original text
+   * @returns DetokenizeResponse with original text
    */
-  async detokenize(
-    text: string,
-    mapping: Record<string, string>
-  ): Promise<DetokenizeResponse> {
-    return this.request<DetokenizeResponse>('/detokenize', 'POST', {
-      text,
-      mapping,
-    })
+  detokenize(text: string, mapping: Record<string, string>): DetokenizeResponse {
+    let result = text
+    let replacements = 0
+
+    // Sort tokens by length (longest first) to avoid partial replacements
+    const sortedTokens = Object.keys(mapping).sort((a, b) => b.length - a.length)
+
+    for (const token of sortedTokens) {
+      const originalValue = mapping[token]
+      const regex = new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+      const matches = result.match(regex)
+
+      if (matches) {
+        result = result.replace(regex, originalValue)
+        replacements += matches.length
+      }
+    }
+
+    return {
+      text: result,
+      replacements_made: replacements,
+    }
   }
 
   /**
@@ -152,10 +179,7 @@ export class Blindfold {
    * @param config - Optional configuration (masking_char, entities)
    * @returns Promise with redacted text and detected entities
    */
-  async redact(
-    text: string,
-    config?: RedactConfig
-  ): Promise<RedactResponse> {
+  async redact(text: string, config?: RedactConfig): Promise<RedactResponse> {
     return this.request<RedactResponse>('/redact', 'POST', {
       text,
       ...config,
@@ -169,10 +193,7 @@ export class Blindfold {
    * @param config - Optional configuration (chars_to_show, from_end, masking_char, entities)
    * @returns Promise with masked text and detected entities
    */
-  async mask(
-    text: string,
-    config?: MaskConfig
-  ): Promise<MaskResponse> {
+  async mask(text: string, config?: MaskConfig): Promise<MaskResponse> {
     return this.request<MaskResponse>('/mask', 'POST', {
       text,
       ...config,
@@ -186,10 +207,7 @@ export class Blindfold {
    * @param config - Optional configuration (language, entities)
    * @returns Promise with synthetic text and detected entities
    */
-  async synthesize(
-    text: string,
-    config?: SynthesizeConfig
-  ): Promise<SynthesizeResponse> {
+  async synthesize(text: string, config?: SynthesizeConfig): Promise<SynthesizeResponse> {
     return this.request<SynthesizeResponse>('/synthesize', 'POST', {
       text,
       ...config,
@@ -203,10 +221,7 @@ export class Blindfold {
    * @param config - Optional configuration (hash_type, hash_prefix, hash_length, entities)
    * @returns Promise with hashed text and detected entities
    */
-  async hash(
-    text: string,
-    config?: HashConfig
-  ): Promise<HashResponse> {
+  async hash(text: string, config?: HashConfig): Promise<HashResponse> {
     return this.request<HashResponse>('/hash', 'POST', {
       text,
       ...config,
@@ -220,10 +235,7 @@ export class Blindfold {
    * @param config - Optional configuration (encryption_key, entities)
    * @returns Promise with encrypted text and detected entities
    */
-  async encrypt(
-    text: string,
-    config?: EncryptConfig
-  ): Promise<EncryptResponse> {
+  async encrypt(text: string, config?: EncryptConfig): Promise<EncryptResponse> {
     return this.request<EncryptResponse>('/encrypt', 'POST', {
       text,
       ...config,
