@@ -46,7 +46,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/blindfold-dev/blindfold-github.git",
+    "url": "git+https://github.com/blindfold-dev/blindfold-github.git",
     "directory": "packages/js-sdk"
   },
   "bugs": {
