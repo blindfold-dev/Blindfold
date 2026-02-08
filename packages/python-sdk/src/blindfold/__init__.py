@@ -9,7 +9,7 @@ from .errors import (
 )
 from .models import DetectedEntity, DetectResponse, DetokenizeResponse, TokenizeResponse
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 __all__ = [
     "Blindfold",
