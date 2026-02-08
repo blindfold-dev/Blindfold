@@ -37,7 +37,7 @@ const client = new Blindfold({});
 const response = await client.tokenize("Contact John Doe at john@example.com");
 
 console.log(response.text); 
-// "Contact <PERSON_1> at <EMAIL_ADDRESS_1>"
+// "Contact <Person_1> at <Email Address_1>"
 
 ```
 
@@ -50,12 +50,12 @@ client = Blindfold()
 response = client.tokenize(
     text="Contact John Doe at john@example.com",
     config={
-        "entities": ["PERSON", "EMAIL_ADDRESS"],
+        "entities": ["person", "email address"],
         "score_threshold": 0.4
     }
 )
 
 print(response.text)
-# "Contact <PERSON_1> at <EMAIL_ADDRESS_1>"
+# "Contact <Person_1> at <Email Address_1>"
 
 ```
