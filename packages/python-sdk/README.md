@@ -30,36 +30,41 @@ client = Blindfold()
 
 ### Tokenize (Reversible)
 
-Replace sensitive data with reversible tokens (e.g., `<PERSON_1>`).
+Replace sensitive data with reversible tokens (e.g., `<Person_1>`).
 
 ```python
 response = client.tokenize(
     text="Contact John Doe at john@example.com",
-    config={
-        "entities": ["PERSON", "EMAIL_ADDRESS"],
-        "score_threshold": 0.4
-    }
+    policy="gdpr_eu",  # Optional: Use a pre-configured policy (e.g., 'hipaa_us', 'basic')
+    entities=["person", "email address"],  # Optional: Filter specific entities
+    score_threshold=0.4  # Optional: Set confidence threshold
 )
 
 print(response.text)
-# "Contact <PERSON_1> at <EMAIL_ADDRESS_1>"
+# "Contact <Person_1> at <Email Address_1>"
 
 print(response.mapping)
-# { "<PERSON_1>": "John Doe", "<EMAIL_ADDRESS_1>": "john@example.com" }
+# { "<Person_1>": "John Doe", "<Email Address_1>": "john@example.com" }
 ```
 
 ### Detokenize
 
 Restore original values from tokens.
 
+**⚡ Note:** Detokenization is performed **client-side** for better performance, security, and offline support. No API call is made.
+
 ```python
+# Runs locally - no API call!
 original = client.detokenize(
-    text="AI response for <PERSON_1>",
+    text="AI response for <Person_1>",
     mapping=response.mapping
 )
 
 print(original.text)
 # "AI response for John Doe"
+
+print(original.replacements_made)
+# 1
 ```
 
 ### Mask
@@ -138,6 +143,10 @@ async def main():
         response = await client.tokenize("Hello John")
         print(response.text)
 
+        # Note: detokenize is also synchronous in async client (no await)
+        original = client.detokenize(response.text, response.mapping)
+        print(original.text)
+
 asyncio.run(main())
 ```
 
@@ -146,17 +155,19 @@ asyncio.run(main())
 ### Entity Types
 
 Common supported entities:
-- `PERSON`
-- `EMAIL_ADDRESS`
-- `PHONE_NUMBER`
-- `CREDIT_CARD`
-- `IP_ADDRESS`
-- `LOCATION`
-- `DATE_TIME`
-- `URL`
-- `IBAN_CODE`
-- `US_SSN`
-- `MEDICAL_LICENSE`
+- `person`
+- `email address`
+- `phone number`
+- `credit card number`
+- `ip address`
+- `address`
+- `date of birth`
+- `organization`
+- `iban`
+- `social security number`
+- `medical condition`
+- `passport number`
+- `driver's license number`
 
 ### Error Handling
 

@@ -48,38 +48,46 @@ const client = new Blindfold({
 
 ### Tokenize (Reversible)
 
-Replace sensitive data with reversible tokens (e.g., `<PERSON_1>`).
+Replace sensitive data with reversible tokens (e.g., `<Person_1>`).
 
 ```typescript
 const response = await client.tokenize(
   "Contact John Doe at john@example.com",
   {
+    // Optional: Use a pre-configured policy
+    policy: 'gdpr_eu',  // or 'hipaa_us', 'basic'
     // Optional: Filter specific entities
-    entities: ['PERSON', 'EMAIL_ADDRESS'],
+    entities: ['person', 'email address'],
     // Optional: Set confidence threshold
     score_threshold: 0.4
   }
 );
 
-console.log(response.text); 
-// "Contact <PERSON_1> at <EMAIL_ADDRESS_1>"
+console.log(response.text);
+// "Contact <Person_1> at <Email Address_1>"
 
 console.log(response.mapping);
-// { "<PERSON_1>": "John Doe", "<EMAIL_ADDRESS_1>": "john@example.com" }
+// { "<Person_1>": "John Doe", "<Email Address_1>": "john@example.com" }
 ```
 
 ### Detokenize
 
 Restore original values from tokens.
 
+**⚡ Note:** Detokenization is performed **client-side** for better performance, security, and offline support. No API call is made.
+
 ```typescript
-const original = await client.detokenize(
-  "AI response for <PERSON_1>",
+// No await needed - runs locally!
+const original = client.detokenize(
+  "AI response for <Person_1>",
   response.mapping
 );
 
 console.log(original.text);
 // "AI response for John Doe"
+
+console.log(original.replacements_made);
+// 1
 ```
 
 ### Mask
@@ -108,7 +116,7 @@ Permanently remove sensitive data.
 const response = await client.redact(
   "My password is secret123",
   {
-    entities: ['PASSWORD'] // If supported
+    entities: ['person', 'email address']
   }
 );
 ```
@@ -161,17 +169,19 @@ const response = await client.encrypt(
 ### Entity Types
 
 Common supported entities:
-- `PERSON`
-- `EMAIL_ADDRESS`
-- `PHONE_NUMBER`
-- `CREDIT_CARD`
-- `IP_ADDRESS`
-- `LOCATION`
-- `DATE_TIME`
-- `URL`
-- `IBAN_CODE`
-- `US_SSN`
-- `MEDICAL_LICENSE`
+- `person`
+- `email address`
+- `phone number`
+- `credit card number`
+- `ip address`
+- `address`
+- `date of birth`
+- `organization`
+- `iban`
+- `social security number`
+- `medical condition`
+- `passport number`
+- `driver's license number`
 
 ### Error Handling
 

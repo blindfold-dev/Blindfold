@@ -1,0 +1,56 @@
+{
+  "name": "@blindfold/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Blindfold PII detection - protect sensitive data in AI conversations",
+  "bin": {
+    "blindfold-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "blindfold",
+    "mcp",
+    "model-context-protocol",
+    "pii",
+    "privacy",
+    "tokenization",
+    "gdpr",
+    "hipaa",
+    "ai",
+    "llm",
+    "claude",
+    "cursor"
+  ],
+  "author": "Blindfold",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blindfold-dev/blindfold-github"
+  },
+  "homepage": "https://blindfold.dev",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
+  }
+}
