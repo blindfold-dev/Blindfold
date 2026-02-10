@@ -18,7 +18,7 @@ npx -y @blindfold/cli detect "Contact John at john@example.com"
 
 ```bash
 # Save your API key
-blindfold config set-key bf_your_api_key
+blindfold config set-key your_api_key
 
 # Detect PII
 blindfold detect "Contact John at john@example.com"
@@ -37,7 +37,7 @@ blindfold mask "Card: 4532-1234-5678-9010"
 
 1. Sign up at [app.blindfold.dev](https://app.blindfold.dev)
 2. Go to **API Keys** and create a new key
-3. Run `blindfold config set-key bf_your_key`
+3. Run `blindfold config set-key your_api_key`
 
 ## Commands
 
@@ -128,7 +128,7 @@ API key resolution order:
 3. Saved config (`~/.config/blindfold/config.json`)
 
 ```bash
-blindfold config set-key bf_your_key    # Save API key
+blindfold config set-key your_api_key    # Save API key
 blindfold config show                    # Show current config
 blindfold config clear                   # Remove saved config
 blindfold config path                    # Print config file path

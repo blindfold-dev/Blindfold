@@ -15,7 +15,7 @@ Add to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@blindfold/mcp-server"],
       "env": {
-        "BLINDFOLD_API_KEY": "bf_your_api_key"
+        "BLINDFOLD_API_KEY": "your_api_key"
       }
     }
   }
@@ -33,7 +33,7 @@ Add to your project's `.mcp.json`:
       "command": "npx",
       "args": ["-y", "@blindfold/mcp-server"],
       "env": {
-        "BLINDFOLD_API_KEY": "bf_your_api_key"
+        "BLINDFOLD_API_KEY": "your_api_key"
       }
     }
   }
@@ -51,7 +51,7 @@ Add via Settings > MCP Servers, or in `.cursor/mcp.json`:
       "command": "npx",
       "args": ["-y", "@blindfold/mcp-server"],
       "env": {
-        "BLINDFOLD_API_KEY": "bf_your_api_key"
+        "BLINDFOLD_API_KEY": "your_api_key"
       }
     }
   }
@@ -62,7 +62,7 @@ Add via Settings > MCP Servers, or in `.cursor/mcp.json`:
 
 1. Sign up at [app.blindfold.dev](https://app.blindfold.dev)
 2. Go to **API Keys** and create a new key
-3. Copy the key (starts with `bf_`) into your config
+3. Copy the key into your config
 
 ## Available Tools
 

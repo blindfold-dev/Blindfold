@@ -16,10 +16,6 @@ export function registerConfigCommand(program: Command): void {
     .command('set-key <api-key>')
     .description('save your Blindfold API key')
     .action((apiKey: string) => {
-      if (!apiKey.startsWith('bf_')) {
-        console.error(c.red('API key should start with "bf_".'));
-        process.exit(2);
-      }
       const existing = loadConfig();
       saveConfig({ ...existing, apiKey });
       console.log(c.green('API key saved.'));
