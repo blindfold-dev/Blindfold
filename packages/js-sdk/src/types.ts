@@ -4,10 +4,14 @@
 export interface BlindfoldConfig {
   /** API key for authentication */
   apiKey: string
-  /** Base URL for the API (default: http://localhost:8000/api/public/v1) */
+  /** Base URL for the API (default: https://api.blindfold.dev/api/public/v1) */
   baseUrl?: string
   /** Optional user ID to track who is making the request */
   userId?: string
+  /** Maximum number of retries on transient errors (default: 2, 0 to disable) */
+  maxRetries?: number
+  /** Initial delay in seconds before first retry (default: 0.5) */
+  retryDelay?: number
 }
 
 /**

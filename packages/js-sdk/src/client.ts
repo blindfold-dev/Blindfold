@@ -20,6 +20,11 @@ import type {
 import { AuthenticationError, APIError, NetworkError } from './errors'
 
 const DEFAULT_BASE_URL = 'https://api.blindfold.dev/api/public/v1'
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504])
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 /**
  * Blindfold client for tokenization and detokenization
@@ -28,6 +33,8 @@ export class Blindfold {
   private apiKey: string
   private baseUrl: string
   private userId?: string
+  private maxRetries: number
+  private retryDelay: number
 
   /**
    * Create a new Blindfold client
@@ -37,6 +44,20 @@ export class Blindfold {
     this.apiKey = config.apiKey
     this.baseUrl = config.baseUrl || DEFAULT_BASE_URL
     this.userId = config.userId
+    this.maxRetries = config.maxRetries ?? 2
+    this.retryDelay = config.retryDelay ?? 0.5
+  }
+
+  private retryWait(attempt: number, error?: APIError): number {
+    if (error && error.statusCode === 429) {
+      const body = error.responseBody as Record<string, unknown> | undefined
+      if (body && typeof body.retry_after === 'number') {
+        return body.retry_after * 1000
+      }
+    }
+    const delay = this.retryDelay * (2 ** attempt) * 1000
+    const jitter = delay * 0.1 * Math.random()
+    return delay + jitter
   }
 
   /**
@@ -58,52 +79,82 @@ export class Blindfold {
       headers['X-Blindfold-User-Id'] = this.userId
     }
 
-    try {
-      const response = await fetch(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      })
+    let lastError: Error = new NetworkError('Request failed')
 
-      // Handle authentication errors
-      if (response.status === 401 || response.status === 403) {
-        throw new AuthenticationError('Authentication failed. Please check your API key.')
-      }
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+        })
 
-      // Handle other error responses
-      if (!response.ok) {
-        let errorMessage = `API request failed with status ${response.status}`
-        let responseBody: unknown
-
-        try {
-          responseBody = await response.json()
-          const errorData = responseBody as APIErrorResponse
-          errorMessage = errorData.detail || errorData.message || errorMessage
-        } catch {
-          // If we can't parse the error response, use the status text
-          errorMessage = `${errorMessage}: ${response.statusText}`
+        // Handle authentication errors
+        if (response.status === 401 || response.status === 403) {
+          throw new AuthenticationError('Authentication failed. Please check your API key.')
         }
 
-        throw new APIError(errorMessage, response.status, responseBody)
-      }
+        // Handle other error responses
+        if (!response.ok) {
+          let errorMessage = `API request failed with status ${response.status}`
+          let responseBody: unknown
 
-      return (await response.json()) as T
-    } catch (error) {
-      // Re-throw our custom errors
-      if (error instanceof AuthenticationError || error instanceof APIError) {
-        throw error
-      }
+          try {
+            responseBody = await response.json()
+            const errorData = responseBody as APIErrorResponse
+            errorMessage = errorData.detail || errorData.message || errorMessage
+          } catch {
+            // If we can't parse the error response, use the status text
+            errorMessage = `${errorMessage}: ${response.statusText}`
+          }
 
-      // Handle network errors
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new NetworkError(
-          'Network request failed. Please check your connection and the API URL.'
-        )
-      }
+          throw new APIError(errorMessage, response.status, responseBody)
+        }
 
-      // Handle other errors
-      throw new NetworkError(error instanceof Error ? error.message : 'Unknown error occurred')
+        return (await response.json()) as T
+      } catch (error) {
+        // Never retry auth errors
+        if (error instanceof AuthenticationError) {
+          throw error
+        }
+
+        // Retry retryable API errors
+        if (error instanceof APIError) {
+          if (RETRYABLE_STATUS_CODES.has(error.statusCode) && attempt < this.maxRetries) {
+            await sleep(this.retryWait(attempt, error))
+            continue
+          }
+          throw error
+        }
+
+        // Retry network errors
+        if (error instanceof NetworkError) {
+          lastError = error
+          if (attempt < this.maxRetries) {
+            await sleep(this.retryWait(attempt))
+            continue
+          }
+          throw error
+        }
+
+        // Handle raw fetch errors (network failures)
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          lastError = new NetworkError(
+            'Network request failed. Please check your connection and the API URL.'
+          )
+          if (attempt < this.maxRetries) {
+            await sleep(this.retryWait(attempt))
+            continue
+          }
+          throw lastError
+        }
+
+        // Non-retryable unknown errors
+        throw new NetworkError(error instanceof Error ? error.message : 'Unknown error occurred')
+      }
     }
+
+    throw lastError
   }
 
   /**

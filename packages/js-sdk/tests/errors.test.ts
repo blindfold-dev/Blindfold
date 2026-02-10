@@ -5,7 +5,7 @@ import { mockFetchError, mockFetchNetworkError, restoreFetch } from './helpers'
 afterEach(restoreFetch)
 
 describe('Error handling', () => {
-  const client = new Blindfold({ apiKey: 'test-key' })
+  const client = new Blindfold({ apiKey: 'test-key', maxRetries: 0 })
 
   test('should throw AuthenticationError on 401', async () => {
     global.fetch = mockFetchError(401)

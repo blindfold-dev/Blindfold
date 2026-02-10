@@ -1,11 +1,16 @@
 """Blindfold client for tokenization and detokenization"""
 
+import asyncio
+import random
+import time
 from typing import Any, Dict, List, Optional
 
 import httpx
 from pydantic import ValidationError
 
 from .errors import APIError, AuthenticationError, NetworkError
+
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 from .models import (
     APIErrorResponse,
     DetectResponse,
@@ -34,6 +39,8 @@ class Blindfold:
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
         user_id: Optional[str] = None,
+        max_retries: int = 2,
+        retry_delay: float = 0.5,
     ) -> None:
         """
         Initialize Blindfold client.
@@ -43,11 +50,15 @@ class Blindfold:
             base_url: Base URL for the API (default: https://api.blindfold.dev/api/public/v1)
             timeout: Request timeout in seconds (default: 30.0)
             user_id: Optional user ID to track who is making the request
+            max_retries: Maximum number of retries on transient errors (default: 2, 0 to disable)
+            retry_delay: Initial delay in seconds before first retry (default: 0.5)
         """
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.user_id = user_id
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
         self._client: Optional[httpx.Client] = None
 
     @property
@@ -118,22 +129,56 @@ class Blindfold:
         endpoint: str,
         json: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Make a synchronous HTTP request"""
-        try:
-            response = self.client.request(
-                method=method,
-                url=endpoint,
-                json=json,
-            )
-            return self._handle_response(response)
-        except (httpx.ConnectError, httpx.TimeoutException) as e:
-            raise NetworkError(
-                f"Network request failed. Please check your connection and the API URL: {str(e)}"
-            ) from e
-        except (AuthenticationError, APIError):
-            raise
-        except Exception as e:
-            raise NetworkError(f"Unexpected error: {str(e)}") from e
+        """Make a synchronous HTTP request with retry logic"""
+        last_exception: Exception = NetworkError("Request failed")
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self.client.request(
+                    method=method,
+                    url=endpoint,
+                    json=json,
+                )
+                return self._handle_response(response)
+            except NetworkError as e:
+                last_exception = e
+                if attempt < self.max_retries:
+                    time.sleep(self._retry_wait(attempt))
+                    continue
+                raise
+            except APIError as e:
+                last_exception = e
+                if e.status_code in RETRYABLE_STATUS_CODES and attempt < self.max_retries:
+                    wait = self._retry_wait(attempt, e)
+                    time.sleep(wait)
+                    continue
+                raise
+            except AuthenticationError:
+                raise
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_exception = NetworkError(
+                    f"Network request failed. Please check your connection and the API URL: {str(e)}"
+                )
+                last_exception.__cause__ = e
+                if attempt < self.max_retries:
+                    time.sleep(self._retry_wait(attempt))
+                    continue
+                raise last_exception from e
+            except Exception as e:
+                raise NetworkError(f"Unexpected error: {str(e)}") from e
+
+        raise last_exception
+
+    def _retry_wait(self, attempt: int, error: Optional[APIError] = None) -> float:
+        """Calculate retry wait time with exponential backoff and jitter."""
+        if error and isinstance(error, APIError) and error.status_code == 429:
+            if error.response_body and isinstance(error.response_body, dict):
+                retry_after = error.response_body.get("retry_after")
+                if retry_after is not None:
+                    return float(retry_after)
+        delay = self.retry_delay * (2 ** attempt)
+        jitter = delay * 0.1 * random.random()
+        return delay + jitter
 
     def tokenize(
         self,
@@ -544,6 +589,8 @@ class AsyncBlindfold:
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
         user_id: Optional[str] = None,
+        max_retries: int = 2,
+        retry_delay: float = 0.5,
     ) -> None:
         """
         Initialize async Blindfold client.
@@ -553,11 +600,15 @@ class AsyncBlindfold:
             base_url: Base URL for the API (default: https://api.blindfold.dev/api/public/v1)
             timeout: Request timeout in seconds (default: 30.0)
             user_id: Optional user ID to track who is making the request
+            max_retries: Maximum number of retries on transient errors (default: 2, 0 to disable)
+            retry_delay: Initial delay in seconds before first retry (default: 0.5)
         """
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.user_id = user_id
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
         self._client: Optional[httpx.AsyncClient] = None
 
     @property
@@ -628,22 +679,56 @@ class AsyncBlindfold:
         endpoint: str,
         json: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Make an asynchronous HTTP request"""
-        try:
-            response = await self.client.request(
-                method=method,
-                url=endpoint,
-                json=json,
-            )
-            return self._handle_response(response)
-        except (httpx.ConnectError, httpx.TimeoutException) as e:
-            raise NetworkError(
-                f"Network request failed. Please check your connection and the API URL: {str(e)}"
-            ) from e
-        except (AuthenticationError, APIError):
-            raise
-        except Exception as e:
-            raise NetworkError(f"Unexpected error: {str(e)}") from e
+        """Make an asynchronous HTTP request with retry logic"""
+        last_exception: Exception = NetworkError("Request failed")
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self.client.request(
+                    method=method,
+                    url=endpoint,
+                    json=json,
+                )
+                return self._handle_response(response)
+            except NetworkError as e:
+                last_exception = e
+                if attempt < self.max_retries:
+                    await asyncio.sleep(self._retry_wait(attempt))
+                    continue
+                raise
+            except APIError as e:
+                last_exception = e
+                if e.status_code in RETRYABLE_STATUS_CODES and attempt < self.max_retries:
+                    wait = self._retry_wait(attempt, e)
+                    await asyncio.sleep(wait)
+                    continue
+                raise
+            except AuthenticationError:
+                raise
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_exception = NetworkError(
+                    f"Network request failed. Please check your connection and the API URL: {str(e)}"
+                )
+                last_exception.__cause__ = e
+                if attempt < self.max_retries:
+                    await asyncio.sleep(self._retry_wait(attempt))
+                    continue
+                raise last_exception from e
+            except Exception as e:
+                raise NetworkError(f"Unexpected error: {str(e)}") from e
+
+        raise last_exception
+
+    def _retry_wait(self, attempt: int, error: Optional[APIError] = None) -> float:
+        """Calculate retry wait time with exponential backoff and jitter."""
+        if error and isinstance(error, APIError) and error.status_code == 429:
+            if error.response_body and isinstance(error.response_body, dict):
+                retry_after = error.response_body.get("retry_after")
+                if retry_after is not None:
+                    return float(retry_after)
+        delay = self.retry_delay * (2 ** attempt)
+        jitter = delay * 0.1 * random.random()
+        return delay + jitter
 
     async def tokenize(
         self,
