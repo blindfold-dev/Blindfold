@@ -58,7 +58,7 @@ function optionals(obj: Record<string, unknown>): Record<string, unknown> {
 export function createServer(apiRequest: ApiRequestFn): McpServer {
   const server = new McpServer({
     name: 'blindfold',
-    version: '1.1.0',
+    version: '1.2.0',
   });
 
   // --- detect ---

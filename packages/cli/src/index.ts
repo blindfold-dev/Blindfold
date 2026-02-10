@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name('blindfold')
   .description('Blindfold CLI — detect and protect PII from the terminal')
-  .version('1.0.0')
+  .version('1.2.0')
   .option('--api-key <key>', 'API key (overrides BLINDFOLD_API_KEY env var)')
   .option('--base-url <url>', 'API base URL')
   .option('--json', 'output raw JSON')
