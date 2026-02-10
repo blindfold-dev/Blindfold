@@ -1,6 +1,7 @@
 {
   "name": "@blindfold/mcp-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "MCP server for Blindfold PII detection - protect sensitive data in AI conversations",
   "bin": {
     "blindfold-mcp": "./dist/index.js"
@@ -38,7 +39,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blindfold-dev/blindfold-github.git"
+    "url": "git+https://github.com/blindfold-dev/Blindfold.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/blindfold-dev/Blindfold/issues"
   },
   "homepage": "https://blindfold.dev",
   "engines": {

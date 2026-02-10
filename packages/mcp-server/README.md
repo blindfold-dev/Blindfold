@@ -141,4 +141,4 @@ npm run dev   # watch mode
 
 ## License
 
-ISC
+MIT
