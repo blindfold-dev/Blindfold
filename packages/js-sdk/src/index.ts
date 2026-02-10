@@ -7,6 +7,7 @@ export type {
   TokenizeResponse,
   DetokenizeResponse,
   DetectedEntity,
+  BatchResponse,
   APIErrorResponse,
 } from './types'
 export { BlindfoldError, AuthenticationError, APIError, NetworkError } from './errors'

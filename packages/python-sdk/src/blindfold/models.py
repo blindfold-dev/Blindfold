@@ -1,6 +1,6 @@
 """Pydantic models for API responses"""
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -110,6 +110,19 @@ class EncryptResponse(BaseModel):
         ..., description="List of detected and encrypted entities"
     )
     entities_count: int = Field(..., description="Number of entities encrypted")
+
+    model_config = ConfigDict(frozen=True)
+
+
+class BatchResponse(BaseModel):
+    """Response from batch processing endpoints"""
+
+    results: List[Dict[str, Any]] = Field(
+        ..., description="Array of individual results (or {\"error\": \"...\"} for failed items)"
+    )
+    total: int = Field(..., description="Total number of texts submitted")
+    succeeded: int = Field(..., description="Number of texts processed successfully")
+    failed: int = Field(..., description="Number of texts that failed processing")
 
     model_config = ConfigDict(frozen=True)
 

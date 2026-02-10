@@ -15,6 +15,7 @@ import type {
   HashResponse,
   EncryptConfig,
   EncryptResponse,
+  BatchResponse,
   APIErrorResponse,
 } from './types'
 import { AuthenticationError, APIError, NetworkError } from './errors'
@@ -289,6 +290,99 @@ export class Blindfold {
   async encrypt(text: string, config?: EncryptConfig): Promise<EncryptResponse> {
     return this.request<EncryptResponse>('/encrypt', 'POST', {
       text,
+      ...config,
+    })
+  }
+
+  // ===== Batch methods =====
+
+  /**
+   * Tokenize multiple texts in a single request
+   * @param texts - Array of texts to tokenize (max 100)
+   * @param config - Optional configuration
+   * @returns Promise with batch results
+   */
+  async tokenizeBatch(texts: string[], config?: TokenizeConfig): Promise<BatchResponse> {
+    return this.request<BatchResponse>('/tokenize', 'POST', {
+      texts,
+      ...config,
+    })
+  }
+
+  /**
+   * Detect PII in multiple texts in a single request
+   * @param texts - Array of texts to analyze (max 100)
+   * @param config - Optional configuration
+   * @returns Promise with batch results
+   */
+  async detectBatch(texts: string[], config?: DetectConfig): Promise<BatchResponse> {
+    return this.request<BatchResponse>('/detect', 'POST', {
+      texts,
+      ...config,
+    })
+  }
+
+  /**
+   * Redact PII from multiple texts in a single request
+   * @param texts - Array of texts to redact (max 100)
+   * @param config - Optional configuration
+   * @returns Promise with batch results
+   */
+  async redactBatch(texts: string[], config?: RedactConfig): Promise<BatchResponse> {
+    return this.request<BatchResponse>('/redact', 'POST', {
+      texts,
+      ...config,
+    })
+  }
+
+  /**
+   * Mask PII in multiple texts in a single request
+   * @param texts - Array of texts to mask (max 100)
+   * @param config - Optional configuration
+   * @returns Promise with batch results
+   */
+  async maskBatch(texts: string[], config?: MaskConfig): Promise<BatchResponse> {
+    return this.request<BatchResponse>('/mask', 'POST', {
+      texts,
+      ...config,
+    })
+  }
+
+  /**
+   * Synthesize multiple texts in a single request
+   * @param texts - Array of texts to synthesize (max 100)
+   * @param config - Optional configuration
+   * @returns Promise with batch results
+   */
+  async synthesizeBatch(texts: string[], config?: SynthesizeConfig): Promise<BatchResponse> {
+    return this.request<BatchResponse>('/synthesize', 'POST', {
+      texts,
+      ...config,
+    })
+  }
+
+  /**
+   * Hash PII in multiple texts in a single request
+   * @param texts - Array of texts to hash (max 100)
+   * @param config - Optional configuration
+   * @returns Promise with batch results
+   */
+  async hashBatch(texts: string[], config?: HashConfig): Promise<BatchResponse> {
+    return this.request<BatchResponse>('/hash', 'POST', {
+      texts,
+      ...config,
+    })
+  }
+
+  /**
+   * Encrypt PII in multiple texts in a single request
+   * @param texts - Array of texts to encrypt (max 100)
+   * @param config - Optional configuration
+   * @returns Promise with batch results
+   */
+  async encryptBatch(texts: string[], config?: EncryptConfig): Promise<BatchResponse> {
+    return this.request<BatchResponse>('/encrypt', 'POST', {
+      texts,
       ...config,
     })
   }

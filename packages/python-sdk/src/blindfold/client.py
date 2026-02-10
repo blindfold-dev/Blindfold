@@ -13,6 +13,7 @@ from .errors import APIError, AuthenticationError, NetworkError
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 from .models import (
     APIErrorResponse,
+    BatchResponse,
     DetectResponse,
     DetokenizeResponse,
     EncryptResponse,
@@ -575,6 +576,164 @@ class Blindfold:
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
 
+    # ===== Batch methods =====
+
+    def _batch_request(
+        self,
+        endpoint: str,
+        texts: List[str],
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> BatchResponse:
+        """Send a batch request and return BatchResponse."""
+        payload: Dict[str, Any] = {"texts": texts}
+        if extra:
+            payload.update(extra)
+        response_data = self._request("POST", endpoint, json=payload)
+        try:
+            return BatchResponse(**response_data)
+        except ValidationError as e:
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
+
+    def tokenize_batch(
+        self,
+        texts: List[str],
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Tokenize multiple texts in a single request."""
+        extra: Dict[str, Any] = {}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return self._batch_request("/tokenize", texts, extra or None)
+
+    def detect_batch(
+        self,
+        texts: List[str],
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Detect PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return self._batch_request("/detect", texts, extra or None)
+
+    def redact_batch(
+        self,
+        texts: List[str],
+        masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Redact PII from multiple texts in a single request."""
+        extra: Dict[str, Any] = {"masking_char": masking_char}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return self._batch_request("/redact", texts, extra)
+
+    def mask_batch(
+        self,
+        texts: List[str],
+        chars_to_show: int = 3,
+        from_end: bool = False,
+        masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Mask PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {
+            "chars_to_show": chars_to_show,
+            "from_end": from_end,
+            "masking_char": masking_char,
+        }
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return self._batch_request("/mask", texts, extra)
+
+    def synthesize_batch(
+        self,
+        texts: List[str],
+        language: str = "en",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Synthesize multiple texts in a single request."""
+        extra: Dict[str, Any] = {"language": language}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return self._batch_request("/synthesize", texts, extra)
+
+    def hash_batch(
+        self,
+        texts: List[str],
+        hash_type: str = "sha256",
+        hash_prefix: str = "HASH_",
+        hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Hash PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {
+            "hash_type": hash_type,
+            "hash_prefix": hash_prefix,
+            "hash_length": hash_length,
+        }
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return self._batch_request("/hash", texts, extra)
+
+    def encrypt_batch(
+        self,
+        texts: List[str],
+        encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Encrypt PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {}
+        if encryption_key:
+            extra["encryption_key"] = encryption_key
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return self._batch_request("/encrypt", texts, extra or None)
+
 
 class AsyncBlindfold:
     """
@@ -1124,3 +1283,161 @@ class AsyncBlindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    # ===== Batch methods =====
+
+    async def _batch_request(
+        self,
+        endpoint: str,
+        texts: List[str],
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> BatchResponse:
+        """Send a batch request and return BatchResponse."""
+        payload: Dict[str, Any] = {"texts": texts}
+        if extra:
+            payload.update(extra)
+        response_data = await self._request("POST", endpoint, json=payload)
+        try:
+            return BatchResponse(**response_data)
+        except ValidationError as e:
+            raise APIError(
+                f"Invalid response format: {str(e)}", 200, response_data
+            ) from e
+
+    async def tokenize_batch(
+        self,
+        texts: List[str],
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Tokenize multiple texts in a single request."""
+        extra: Dict[str, Any] = {}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return await self._batch_request("/tokenize", texts, extra or None)
+
+    async def detect_batch(
+        self,
+        texts: List[str],
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Detect PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return await self._batch_request("/detect", texts, extra or None)
+
+    async def redact_batch(
+        self,
+        texts: List[str],
+        masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Redact PII from multiple texts in a single request."""
+        extra: Dict[str, Any] = {"masking_char": masking_char}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return await self._batch_request("/redact", texts, extra)
+
+    async def mask_batch(
+        self,
+        texts: List[str],
+        chars_to_show: int = 3,
+        from_end: bool = False,
+        masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Mask PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {
+            "chars_to_show": chars_to_show,
+            "from_end": from_end,
+            "masking_char": masking_char,
+        }
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return await self._batch_request("/mask", texts, extra)
+
+    async def synthesize_batch(
+        self,
+        texts: List[str],
+        language: str = "en",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Synthesize multiple texts in a single request."""
+        extra: Dict[str, Any] = {"language": language}
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return await self._batch_request("/synthesize", texts, extra)
+
+    async def hash_batch(
+        self,
+        texts: List[str],
+        hash_type: str = "sha256",
+        hash_prefix: str = "HASH_",
+        hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Hash PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {
+            "hash_type": hash_type,
+            "hash_prefix": hash_prefix,
+            "hash_length": hash_length,
+        }
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return await self._batch_request("/hash", texts, extra)
+
+    async def encrypt_batch(
+        self,
+        texts: List[str],
+        encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> BatchResponse:
+        """Encrypt PII in multiple texts in a single request."""
+        extra: Dict[str, Any] = {}
+        if encryption_key:
+            extra["encryption_key"] = encryption_key
+        if entities is not None:
+            extra["entities"] = entities
+        if score_threshold is not None:
+            extra["score_threshold"] = score_threshold
+        if policy is not None:
+            extra["policy"] = policy
+        return await self._batch_request("/encrypt", texts, extra or None)

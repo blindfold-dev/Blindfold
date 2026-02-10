@@ -227,6 +227,20 @@ export interface EncryptResponse {
 }
 
 /**
+ * Response wrapper for batch processing
+ */
+export interface BatchResponse {
+  /** Array of individual results (or { error: string } for failed items) */
+  results: (Record<string, unknown>)[]
+  /** Total number of texts submitted */
+  total: number
+  /** Number of texts processed successfully */
+  succeeded: number
+  /** Number of texts that failed processing */
+  failed: number
+}
+
+/**
  * Error response from API
  */
 export interface APIErrorResponse {

@@ -7,7 +7,7 @@ from .errors import (
     BlindfoldError,
     NetworkError,
 )
-from .models import DetectedEntity, DetectResponse, DetokenizeResponse, TokenizeResponse
+from .models import BatchResponse, DetectedEntity, DetectResponse, DetokenizeResponse, TokenizeResponse
 
 __version__ = "1.0.1"
 
@@ -22,4 +22,5 @@ __all__ = [
     "DetectResponse",
     "DetokenizeResponse",
     "DetectedEntity",
+    "BatchResponse",
 ]
