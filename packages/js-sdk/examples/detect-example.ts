@@ -21,7 +21,7 @@ async function main() {
   const result = await client.detect(text)
   console.log(`   Found ${result.entities_count} entities:`)
   for (const entity of result.detected_entities) {
-    console.log(`   - ${entity.entity_type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
+    console.log(`   - ${entity.type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
   }
   console.log()
 
@@ -35,7 +35,7 @@ async function main() {
   })
   console.log(`   Found ${result2.entities_count} entities (filtered):`)
   for (const entity of result2.detected_entities) {
-    console.log(`   - ${entity.entity_type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
+    console.log(`   - ${entity.type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
   }
   console.log()
 
@@ -49,7 +49,7 @@ async function main() {
   })
   console.log(`   Found ${result3.entities_count} entities (PCI-DSS policy):`)
   for (const entity of result3.detected_entities) {
-    console.log(`   - ${entity.entity_type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
+    console.log(`   - ${entity.type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
   }
   console.log()
 
@@ -63,7 +63,7 @@ async function main() {
   })
   console.log(`   Found ${result4.entities_count} entities (>80% confidence):`)
   for (const entity of result4.detected_entities) {
-    console.log(`   - ${entity.entity_type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
+    console.log(`   - ${entity.type}: "${entity.text}" (confidence: ${entity.score.toFixed(2)})`)
   }
 }
 

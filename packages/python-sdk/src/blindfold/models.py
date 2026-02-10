@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class DetectedEntity(BaseModel):
     """Detected entity in text"""
 
-    entity_type: str = Field(
+    type: str = Field(
         ..., description='Entity type (e.g., "person", "email address", "phone number")'
     )
     text: str = Field(..., description="Original text of the entity")

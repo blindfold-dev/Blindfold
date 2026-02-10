@@ -10,7 +10,7 @@ const BATCH_RESPONSE = {
     {
       text: '<Person_1>',
       mapping: { '<Person_1>': 'John' },
-      detected_entities: [{ entity_type: 'Person', text: 'John', start: 0, end: 4, score: 0.95 }],
+      detected_entities: [{ type: 'Person', text: 'John', start: 0, end: 4, score: 0.95 }],
       entities_count: 1,
     },
     { text: 'no PII here', mapping: {}, detected_entities: [], entities_count: 0 },
@@ -22,7 +22,7 @@ const BATCH_RESPONSE = {
 
 const BATCH_DETECT_RESPONSE = {
   results: [
-    { detected_entities: [{ entity_type: 'Person', text: 'John', start: 0, end: 4, score: 0.95 }], entities_count: 1 },
+    { detected_entities: [{ type: 'Person', text: 'John', start: 0, end: 4, score: 0.95 }], entities_count: 1 },
     { detected_entities: [], entities_count: 0 },
   ],
   total: 2,

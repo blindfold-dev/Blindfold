@@ -69,7 +69,7 @@ describe('blindfold_detect', () => {
 
   test('should return API result as JSON', async () => {
     const apiResult = {
-      detected_entities: [{ entity_type: 'person', text: 'John', start: 0, end: 4, score: 0.95 }],
+      detected_entities: [{ type: 'person', text: 'John', start: 0, end: 4, score: 0.95 }],
       entities_count: 1,
     };
     mockApiRequest.mockResolvedValue(apiResult);

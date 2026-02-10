@@ -47,7 +47,7 @@ def main():
     print(f"Tokenized message: {tokenized.text}")
     print("Detected entities:")
     for entity in tokenized.detected_entities:
-        print(f"  - {entity.entity_type}: {entity.text} (score: {entity.score:.2f})")
+        print(f"  - {entity.type}: {entity.text} (score: {entity.score:.2f})")
     print()
 
     # Step 2: Send to OpenAI (simulated)

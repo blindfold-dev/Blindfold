@@ -11,9 +11,9 @@ from conftest import make_response
 
 BATCH_RESPONSE_DATA = {
     "results": [
-        {"text": "<Person_1>", "mapping": {"<Person_1>": "John"}, "detected_entities": [{"entity_type": "Person", "text": "John", "start": 0, "end": 4, "score": 0.95}], "entities_count": 1},
+        {"text": "<Person_1>", "mapping": {"<Person_1>": "John"}, "detected_entities": [{"type": "Person", "text": "John", "start": 0, "end": 4, "score": 0.95}], "entities_count": 1},
         {"text": "no PII here", "mapping": {}, "detected_entities": [], "entities_count": 0},
-        {"text": "<Email Address_1>", "mapping": {"<Email Address_1>": "john@example.com"}, "detected_entities": [{"entity_type": "Email Address", "text": "john@example.com", "start": 0, "end": 16, "score": 0.98}], "entities_count": 1},
+        {"text": "<Email Address_1>", "mapping": {"<Email Address_1>": "john@example.com"}, "detected_entities": [{"type": "Email Address", "text": "john@example.com", "start": 0, "end": 16, "score": 0.98}], "entities_count": 1},
     ],
     "total": 3,
     "succeeded": 3,
@@ -22,7 +22,7 @@ BATCH_RESPONSE_DATA = {
 
 BATCH_DETECT_RESPONSE_DATA = {
     "results": [
-        {"detected_entities": [{"entity_type": "Person", "text": "John", "start": 0, "end": 4, "score": 0.95}], "entities_count": 1},
+        {"detected_entities": [{"type": "Person", "text": "John", "start": 0, "end": 4, "score": 0.95}], "entities_count": 1},
         {"detected_entities": [], "entities_count": 0},
     ],
     "total": 2,

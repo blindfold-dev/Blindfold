@@ -1,5 +1,5 @@
 export interface DetectedEntity {
-  entity_type: string;
+  type: string;
   text: string;
   start: number;
   end: number;
@@ -31,4 +31,11 @@ export interface TextTransformResponse {
 
 export interface EncryptResponse extends TextTransformResponse {
   encryption_key?: string;
+}
+
+export interface BatchResponse {
+  results: Record<string, unknown>[];
+  total: number;
+  succeeded: number;
+  failed: number;
 }

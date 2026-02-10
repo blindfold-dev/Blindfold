@@ -42,6 +42,31 @@ function readStdin(): Promise<string> {
   });
 }
 
+export async function resolveTexts(
+  positionalArg: string | undefined,
+  options: { file?: string }
+): Promise<string[]> {
+  if (options.file) {
+    try {
+      const content = fs.readFileSync(options.file, 'utf-8');
+      const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length === 0) throw new Error();
+      return lines;
+    } catch {
+      throw new InputError(`Cannot read file: ${options.file}`);
+    }
+  }
+
+  if (!process.stdin.isTTY) {
+    const text = await readStdin();
+    return text.split('\n').map((l) => l.trim()).filter(Boolean);
+  }
+
+  throw new InputError(
+    'Batch mode requires --file or piped stdin (one text per line).'
+  );
+}
+
 export async function resolveSamples(
   positionalArgs: string[],
   options: { file?: string }

@@ -130,6 +130,26 @@ response = client.encrypt(
 )
 ```
 
+## Batch Processing
+
+Process multiple texts in a single request (max 100 texts):
+
+```python
+result = client.tokenize_batch(
+    ["Contact John Doe", "jane@example.com", "No PII here"],
+    policy="gdpr_eu"
+)
+
+print(result.total)       # 3
+print(result.succeeded)   # 3
+print(result.failed)      # 0
+
+for item in result.results:
+    print(item["text"])
+```
+
+All methods have batch variants: `tokenize_batch`, `detect_batch`, `redact_batch`, `mask_batch`, `synthesize_batch`, `hash_batch`, `encrypt_batch`.
+
 ## Async Usage
 
 The SDK also supports asyncio:

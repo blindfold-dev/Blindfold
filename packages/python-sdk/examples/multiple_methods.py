@@ -41,7 +41,7 @@ def main():
     detected = client.detect(text=original_text)
     print(f"   Found {detected.entities_count} entities:")
     for entity in detected.detected_entities:
-        print(f"   - {entity.entity_type}: \"{entity.text}\"")
+        print(f"   - {entity.type}: \"{entity.text}\"")
     print()
 
     # 3. Mask (partial visibility)

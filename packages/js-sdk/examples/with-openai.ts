@@ -41,7 +41,7 @@ async function main() {
   console.log('Tokenized message:', tokenized.text)
   console.log('Detected entities:')
   tokenized.detected_entities.forEach((entity) => {
-    console.log(`  - ${entity.entity_type}: ${entity.text} (score: ${entity.score})`)
+    console.log(`  - ${entity.type}: ${entity.text} (score: ${entity.score})`)
   })
   console.log()
 

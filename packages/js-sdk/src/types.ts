@@ -53,7 +53,7 @@ export interface DetectResponse {
  */
 export interface DetectedEntity {
   /** Entity type (e.g., "person", "email address", "phone number") */
-  entity_type: string
+  type: string
   /** Original text of the entity */
   text: string
   /** Start index in text */

@@ -15,7 +15,7 @@ describe('detect', () => {
     const result = await client.detect('John Doe called')
 
     expect(result.detected_entities).toHaveLength(1)
-    expect(result.detected_entities[0].entity_type).toBe('person')
+    expect(result.detected_entities[0].type).toBe('person')
     expect(result.detected_entities[0].text).toBe('John Doe')
     expect(result.detected_entities[0].score).toBe(0.95)
     expect(result.entities_count).toBe(1)

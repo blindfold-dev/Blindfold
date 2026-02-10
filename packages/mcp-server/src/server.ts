@@ -24,60 +24,94 @@ const thresholdParam = z
 
 type ApiRequestFn = (endpoint: string, body: Record<string, unknown>) => Promise<unknown>;
 
+/** Build body with text or texts, plus optional config fields. */
+function buildBody(
+  text: string | undefined,
+  texts: string[] | undefined,
+  extra: Record<string, unknown>
+): Record<string, unknown> {
+  if (texts && texts.length > 0) {
+    return { texts, ...extra };
+  }
+  return { text, ...extra };
+}
+
+/** Validate that exactly one of text/texts is provided. */
+function validateInput(text: string | undefined, texts: string[] | undefined): void {
+  if (text && texts && texts.length > 0) {
+    throw new Error("Provide 'text' or 'texts', not both");
+  }
+  if (!text && (!texts || texts.length === 0)) {
+    throw new Error("Provide 'text' or 'texts'");
+  }
+}
+
+/** Strip undefined values from an object. */
+function optionals(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) result[k] = v;
+  }
+  return result;
+}
+
 export function createServer(apiRequest: ApiRequestFn): McpServer {
   const server = new McpServer({
     name: 'blindfold',
-    version: '1.0.0',
+    version: '1.1.0',
   });
 
+  // --- detect ---
   server.tool(
     'blindfold_detect',
     `Detect PII in text without modifying it.
 Returns only the detected entities with their types, positions, and confidence scores.
 The original text is not transformed or returned.
 
-Example: "John Doe, john@example.com" → [{"entity_type": "person", "text": "John Doe", ...}, {"entity_type": "email address", ...}]`,
+Supports batch: pass "texts" array (max 100) instead of "text" to process multiple texts in one call.
+
+Example: "John Doe, john@example.com" → [{"type": "person", "text": "John Doe", ...}, {"type": "email address", ...}]`,
     {
-      text: z.string().describe('Text to analyze for PII'),
+      text: z.string().optional().describe('Text to analyze for PII'),
+      texts: z.array(z.string()).max(100).optional().describe('Array of texts for batch processing (max 100). Use text OR texts, not both.'),
       policy: policyParam,
       entities: entitiesParam,
       score_threshold: thresholdParam,
     },
-    async ({ text, policy, entities, score_threshold }) => {
-      const body: Record<string, unknown> = { text };
-      if (policy) body.policy = policy;
-      if (entities) body.entities = entities;
-      if (score_threshold !== undefined) body.score_threshold = score_threshold;
-
+    async ({ text, texts, policy, entities, score_threshold }) => {
+      validateInput(text, texts);
+      const body = buildBody(text, texts, optionals({ policy, entities, score_threshold }));
       const result = await apiRequest('/detect', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
+  // --- tokenize ---
   server.tool(
     'blindfold_tokenize',
     `Detect and replace PII (personal data) in text with reversible tokens.
 Use this BEFORE sending text containing sensitive information to an AI model.
 Returns tokenized text and a mapping to restore original values later.
 
+Supports batch: pass "texts" array (max 100) instead of "text" to process multiple texts in one call.
+
 Example: "John Doe, john@example.com" → "<Person_1>, <Email Address_1>"`,
     {
-      text: z.string().describe('Text containing sensitive data to tokenize'),
+      text: z.string().optional().describe('Text containing sensitive data to tokenize'),
+      texts: z.array(z.string()).max(100).optional().describe('Array of texts for batch processing (max 100). Use text OR texts, not both.'),
       policy: policyParam,
       entities: entitiesParam,
       score_threshold: thresholdParam,
     },
-    async ({ text, policy, entities, score_threshold }) => {
-      const body: Record<string, unknown> = { text };
-      if (policy) body.policy = policy;
-      if (entities) body.entities = entities;
-      if (score_threshold !== undefined) body.score_threshold = score_threshold;
-
+    async ({ text, texts, policy, entities, score_threshold }) => {
+      validateInput(text, texts);
+      const body = buildBody(text, texts, optionals({ policy, entities, score_threshold }));
       const result = await apiRequest('/tokenize', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
+  // --- detokenize (no batch — client-side operation) ---
   server.tool(
     'blindfold_detokenize',
     `Restore original values in text by replacing tokens with real data.
@@ -97,14 +131,18 @@ Example: "<Person_1>, <Email Address_1>" → "John Doe, john@example.com"`,
     }
   );
 
+  // --- mask ---
   server.tool(
     'blindfold_mask',
     `Partially hide PII in text with masking characters.
 Useful when you need to show data format but hide actual values.
 
+Supports batch: pass "texts" array (max 100) instead of "text" to process multiple texts in one call.
+
 Example: "4532-7562-9102-3456" → "****-****-****-3456"`,
     {
-      text: z.string().describe('Text containing sensitive data to mask'),
+      text: z.string().optional().describe('Text containing sensitive data to mask'),
+      texts: z.array(z.string()).max(100).optional().describe('Array of texts for batch processing (max 100). Use text OR texts, not both.'),
       policy: policyParam,
       entities: entitiesParam,
       score_threshold: thresholdParam,
@@ -115,52 +153,51 @@ Example: "4532-7562-9102-3456" → "****-****-****-3456"`,
         .optional()
         .describe('Show visible characters from end instead of start (default: true)'),
     },
-    async ({ text, policy, entities, score_threshold, masking_char, chars_to_show, from_end }) => {
-      const body: Record<string, unknown> = { text };
-      if (policy) body.policy = policy;
-      if (entities) body.entities = entities;
-      if (score_threshold !== undefined) body.score_threshold = score_threshold;
-      if (masking_char) body.masking_char = masking_char;
-      if (chars_to_show !== undefined) body.chars_to_show = chars_to_show;
-      if (from_end !== undefined) body.from_end = from_end;
-
+    async ({ text, texts, policy, entities, score_threshold, masking_char, chars_to_show, from_end }) => {
+      validateInput(text, texts);
+      const body = buildBody(text, texts, optionals({ policy, entities, score_threshold, masking_char, chars_to_show, from_end }));
       const result = await apiRequest('/mask', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
+  // --- redact ---
   server.tool(
     'blindfold_redact',
     `Permanently remove PII from text by replacing with [REDACTED] markers.
 Use when sensitive data should be completely removed with no way to recover it.
 
+Supports batch: pass "texts" array (max 100) instead of "text" to process multiple texts in one call.
+
 Example: "Call John at 555-1234" → "Call [REDACTED] at [REDACTED]"`,
     {
-      text: z.string().describe('Text containing sensitive data to redact'),
+      text: z.string().optional().describe('Text containing sensitive data to redact'),
+      texts: z.array(z.string()).max(100).optional().describe('Array of texts for batch processing (max 100). Use text OR texts, not both.'),
       policy: policyParam,
       entities: entitiesParam,
       score_threshold: thresholdParam,
     },
-    async ({ text, policy, entities, score_threshold }) => {
-      const body: Record<string, unknown> = { text };
-      if (policy) body.policy = policy;
-      if (entities) body.entities = entities;
-      if (score_threshold !== undefined) body.score_threshold = score_threshold;
-
+    async ({ text, texts, policy, entities, score_threshold }) => {
+      validateInput(text, texts);
+      const body = buildBody(text, texts, optionals({ policy, entities, score_threshold }));
       const result = await apiRequest('/redact', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
+  // --- synthesize ---
   server.tool(
     'blindfold_synthesize',
     `Replace PII with realistic fake data that preserves text structure.
 Useful for creating test data or anonymized datasets.
 Supports 8 languages: en, cs, de, fr, es, it, pl, sk.
 
+Supports batch: pass "texts" array (max 100) instead of "text" to process multiple texts in one call.
+
 Example: "John Doe, john@acme.com" → "Maria Garcia, maria@example.net"`,
     {
-      text: z.string().describe('Text containing sensitive data to synthesize'),
+      text: z.string().optional().describe('Text containing sensitive data to synthesize'),
+      texts: z.array(z.string()).max(100).optional().describe('Array of texts for batch processing (max 100). Use text OR texts, not both.'),
       policy: policyParam,
       entities: entitiesParam,
       score_threshold: thresholdParam,
@@ -169,71 +206,67 @@ Example: "John Doe, john@acme.com" → "Maria Garcia, maria@example.net"`,
         .optional()
         .describe('Language for synthetic data (en, cs, de, fr, es, it, pl, sk)'),
     },
-    async ({ text, policy, entities, score_threshold, language }) => {
-      const body: Record<string, unknown> = { text };
-      if (policy) body.policy = policy;
-      if (entities) body.entities = entities;
-      if (score_threshold !== undefined) body.score_threshold = score_threshold;
-      if (language) body.language = language;
-
+    async ({ text, texts, policy, entities, score_threshold, language }) => {
+      validateInput(text, texts);
+      const body = buildBody(text, texts, optionals({ policy, entities, score_threshold, language }));
       const result = await apiRequest('/synthesize', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
+  // --- hash ---
   server.tool(
     'blindfold_hash',
     `Replace PII with deterministic one-way hashes.
 Same input always produces same hash, but original cannot be recovered.
 Useful for consistent anonymization across datasets.
 
+Supports batch: pass "texts" array (max 100) instead of "text" to process multiple texts in one call.
+
 Example: "john@example.com" → "HASH_a3f8b9c2d4"`,
     {
-      text: z.string().describe('Text containing sensitive data to hash'),
+      text: z.string().optional().describe('Text containing sensitive data to hash'),
+      texts: z.array(z.string()).max(100).optional().describe('Array of texts for batch processing (max 100). Use text OR texts, not both.'),
       policy: policyParam,
       entities: entitiesParam,
       score_threshold: thresholdParam,
       hash_type: z.string().optional().describe('Hash algorithm: "md5", "sha1", "sha256" (default)'),
       hash_length: z.number().optional().describe('Truncate hash to this many characters'),
     },
-    async ({ text, policy, entities, score_threshold, hash_type, hash_length }) => {
-      const body: Record<string, unknown> = { text };
-      if (policy) body.policy = policy;
-      if (entities) body.entities = entities;
-      if (score_threshold !== undefined) body.score_threshold = score_threshold;
-      if (hash_type) body.hash_type = hash_type;
-      if (hash_length !== undefined) body.hash_length = hash_length;
-
+    async ({ text, texts, policy, entities, score_threshold, hash_type, hash_length }) => {
+      validateInput(text, texts);
+      const body = buildBody(text, texts, optionals({ policy, entities, score_threshold, hash_type, hash_length }));
       const result = await apiRequest('/hash', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
+  // --- encrypt ---
   server.tool(
     'blindfold_encrypt',
     `Encrypt PII in text using AES encryption with a password.
 Encrypted values can be decrypted later with the same password.
 
+Supports batch: pass "texts" array (max 100) instead of "text" to process multiple texts in one call.
+
 Example: "John Doe" → "ENC_gAAAAABl..."`,
     {
-      text: z.string().describe('Text containing sensitive data to encrypt'),
+      text: z.string().optional().describe('Text containing sensitive data to encrypt'),
+      texts: z.array(z.string()).max(100).optional().describe('Array of texts for batch processing (max 100). Use text OR texts, not both.'),
       policy: policyParam,
       entities: entitiesParam,
       score_threshold: thresholdParam,
       encryption_key: z.string().optional().describe('Encryption password (server generates one if omitted)'),
     },
-    async ({ text, policy, entities, score_threshold, encryption_key }) => {
-      const body: Record<string, unknown> = { text };
-      if (policy) body.policy = policy;
-      if (entities) body.entities = entities;
-      if (score_threshold !== undefined) body.score_threshold = score_threshold;
-      if (encryption_key) body.encryption_key = encryption_key;
-
+    async ({ text, texts, policy, entities, score_threshold, encryption_key }) => {
+      validateInput(text, texts);
+      const body = buildBody(text, texts, optionals({ policy, entities, score_threshold, encryption_key }));
       const result = await apiRequest('/encrypt', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
+  // --- discover ---
   server.tool(
     'blindfold_discover',
     `Analyze text samples to discover what types of PII they contain.

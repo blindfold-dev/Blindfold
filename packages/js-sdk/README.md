@@ -164,6 +164,25 @@ const response = await client.encrypt(
 );
 ```
 
+## Batch Processing
+
+Process multiple texts in a single request (max 100 texts):
+
+```typescript
+const result = await client.tokenizeBatch(
+  ["Contact John Doe", "jane@example.com", "No PII here"],
+  { policy: "gdpr_eu" }
+);
+
+console.log(result.total);      // 3
+console.log(result.succeeded);  // 3
+console.log(result.failed);     // 0
+
+result.results.forEach(item => console.log(item.text));
+```
+
+All methods have batch variants: `tokenizeBatch`, `detectBatch`, `redactBatch`, `maskBatch`, `synthesizeBatch`, `hashBatch`, `encryptBatch`.
+
 ## Configuration
 
 ### Entity Types

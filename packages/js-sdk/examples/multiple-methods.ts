@@ -35,7 +35,7 @@ async function main() {
   const detected = await client.detect(originalText)
   console.log(`   Found ${detected.entities_count} entities:`)
   for (const entity of detected.detected_entities) {
-    console.log(`   - ${entity.entity_type}: "${entity.text}"`)
+    console.log(`   - ${entity.type}: "${entity.text}"`)
   }
   console.log()
 

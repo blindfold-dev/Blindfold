@@ -1,10 +1,10 @@
 import { Command } from 'commander';
-import { addCommonOptions, buildBody } from './shared.js';
-import { resolveText } from '../lib/input.js';
+import { addCommonOptions, buildBody, buildBatchBody } from './shared.js';
+import { resolveText, resolveTexts } from '../lib/input.js';
 import { createApiRequest } from '../lib/api.js';
 import { resolveApiKey, resolveBaseUrl } from '../lib/config.js';
-import { printTextResult } from '../lib/output.js';
-import type { TextTransformResponse } from '../types.js';
+import { printTextResult, printBatchResult } from '../lib/output.js';
+import type { TextTransformResponse, BatchResponse } from '../types.js';
 
 export function registerHashCommand(program: Command): void {
   const cmd = program
@@ -20,6 +20,16 @@ export function registerHashCommand(program: Command): void {
     const apiKey = resolveApiKey(globalOpts.apiKey);
     const baseUrl = resolveBaseUrl(globalOpts.baseUrl);
     const api = createApiRequest(apiKey, baseUrl);
+
+    if (options.batch) {
+      const texts = await resolveTexts(text, { file: options.file });
+      const body = buildBatchBody(texts, options);
+      if (options.hashType) body.hash_type = options.hashType;
+      if (options.hashLength) body.hash_length = parseInt(options.hashLength, 10);
+      const result = await api<BatchResponse>('/hash', body);
+      printBatchResult(result, 'Hashed', globalOpts);
+      return;
+    }
 
     const inputText = await resolveText(text, { file: options.file });
     const body = buildBody(inputText, options);

@@ -14,7 +14,7 @@ import pytest
 from blindfold import AsyncBlindfold, Blindfold
 
 SAMPLE_ENTITY = {
-    "entity_type": "person",
+    "type": "person",
     "text": "John Doe",
     "start": 0,
     "end": 8,

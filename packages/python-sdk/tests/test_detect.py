@@ -18,7 +18,7 @@ class TestDetect:
         result = client.detect(text="John Doe called yesterday")
 
         assert len(result.detected_entities) == 1
-        assert result.detected_entities[0].entity_type == "person"
+        assert result.detected_entities[0].type == "person"
         assert result.detected_entities[0].text == "John Doe"
         assert result.detected_entities[0].score == 0.95
         assert result.entities_count == 1

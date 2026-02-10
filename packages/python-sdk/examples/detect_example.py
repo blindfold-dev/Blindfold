@@ -27,7 +27,7 @@ def main():
     result = client.detect(text=text)
     print(f"   Found {result.entities_count} entities:")
     for entity in result.detected_entities:
-        print(f"   - {entity.entity_type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
+        print(f"   - {entity.type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
     print()
 
     # 2. Detection with specific entities
@@ -38,7 +38,7 @@ def main():
     result = client.detect(text=text, entities=["person", "social security number"])
     print(f"   Found {result.entities_count} entities (filtered):")
     for entity in result.detected_entities:
-        print(f"   - {entity.entity_type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
+        print(f"   - {entity.type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
     print()
 
     # 3. Detection with policy
@@ -49,7 +49,7 @@ def main():
     result = client.detect(text=text, policy="pci_dss")
     print(f"   Found {result.entities_count} entities (PCI-DSS policy):")
     for entity in result.detected_entities:
-        print(f"   - {entity.entity_type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
+        print(f"   - {entity.type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
     print()
 
     # 4. Detection with confidence threshold
@@ -60,7 +60,7 @@ def main():
     result = client.detect(text=text, score_threshold=0.8)
     print(f"   Found {result.entities_count} entities (>80% confidence):")
     for entity in result.detected_entities:
-        print(f"   - {entity.entity_type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
+        print(f"   - {entity.type}: \"{entity.text}\" (confidence: {entity.score:.2f})")
 
 
 if __name__ == "__main__":
