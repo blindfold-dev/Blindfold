@@ -22,6 +22,21 @@ export function registerConfigCommand(program: Command): void {
     });
 
   config
+    .command('set-region <region>')
+    .description('save default region (eu or us)')
+    .action((region: string) => {
+      const valid = ['eu', 'us'];
+      const lower = region.toLowerCase();
+      if (!valid.includes(lower)) {
+        console.error(c.red(`Invalid region '${region}'. Must be one of: ${valid.join(', ')}`));
+        process.exit(2);
+      }
+      const existing = loadConfig();
+      saveConfig({ ...existing, region: lower });
+      console.log(c.green(`Region set to '${lower}'.`));
+    });
+
+  config
     .command('show')
     .description('show current configuration')
     .action(() => {
@@ -33,6 +48,9 @@ export function registerConfigCommand(program: Command): void {
         console.log(c.bold('API key:    '), masked);
       } else {
         console.log(c.bold('API key:    '), c.dim('not set'));
+      }
+      if (cfg.region) {
+        console.log(c.bold('Region:     '), cfg.region);
       }
       if (cfg.baseUrl) {
         console.log(c.bold('Base URL:   '), cfg.baseUrl);
