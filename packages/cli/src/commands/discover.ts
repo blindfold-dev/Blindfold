@@ -14,7 +14,7 @@ export function registerDiscoverCommand(program: Command): void {
   cmd.action(async (samples: string[], options: Record<string, string>) => {
     const globalOpts = program.opts();
     const apiKey = resolveApiKey(globalOpts.apiKey);
-    const baseUrl = resolveBaseUrl(globalOpts.baseUrl);
+    const baseUrl = resolveBaseUrl(globalOpts.baseUrl, globalOpts.region);
     const api = createApiRequest(apiKey, baseUrl);
 
     const resolvedSamples = await resolveSamples(samples, { file: options.file });

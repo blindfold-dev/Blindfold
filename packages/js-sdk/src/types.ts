@@ -6,6 +6,8 @@ export interface BlindfoldConfig {
   apiKey: string
   /** Base URL for the API (default: https://api.blindfold.dev/api/public/v1) */
   baseUrl?: string
+  /** Region for data residency ("eu" or "us"). Overrides baseUrl if baseUrl is not set. */
+  region?: 'eu' | 'us'
   /** Optional user ID to track who is making the request */
   userId?: string
   /** Maximum number of retries on transient errors (default: 2, 0 to disable) */

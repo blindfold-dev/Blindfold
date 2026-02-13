@@ -23,6 +23,11 @@ import { AuthenticationError, APIError, NetworkError } from './errors'
 const DEFAULT_BASE_URL = 'https://api.blindfold.dev/api/public/v1'
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504])
 
+const REGION_URLS: Record<string, string> = {
+  eu: 'https://eu-api.blindfold.dev/api/public/v1',
+  us: 'https://us-api.blindfold.dev/api/public/v1',
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -43,7 +48,15 @@ export class Blindfold {
    */
   constructor(config: BlindfoldConfig) {
     this.apiKey = config.apiKey
-    this.baseUrl = config.baseUrl || DEFAULT_BASE_URL
+    if (config.region && !config.baseUrl) {
+      const regionUrl = REGION_URLS[config.region]
+      if (!regionUrl) {
+        throw new Error(`Invalid region '${config.region}'. Must be one of: ${Object.keys(REGION_URLS).join(', ')}`)
+      }
+      this.baseUrl = regionUrl
+    } else {
+      this.baseUrl = config.baseUrl || DEFAULT_BASE_URL
+    }
     this.userId = config.userId
     this.maxRetries = config.maxRetries ?? 2
     this.retryDelay = config.retryDelay ?? 0.5

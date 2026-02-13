@@ -26,6 +26,11 @@ from .models import (
 
 DEFAULT_BASE_URL = "https://api.blindfold.dev/api/public/v1"
 
+REGION_URLS = {
+    "eu": "https://eu-api.blindfold.dev/api/public/v1",
+    "us": "https://us-api.blindfold.dev/api/public/v1",
+}
+
 
 class Blindfold:
     """
@@ -42,6 +47,7 @@ class Blindfold:
         user_id: Optional[str] = None,
         max_retries: int = 2,
         retry_delay: float = 0.5,
+        region: Optional[str] = None,
     ) -> None:
         """
         Initialize Blindfold client.
@@ -53,13 +59,21 @@ class Blindfold:
             user_id: Optional user ID to track who is making the request
             max_retries: Maximum number of retries on transient errors (default: 2, 0 to disable)
             retry_delay: Initial delay in seconds before first retry (default: 0.5)
+            region: Optional region for data residency ("eu" or "us"). Overrides base_url if base_url is default.
         """
         self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
+        if region and base_url == DEFAULT_BASE_URL:
+            region_lower = region.lower()
+            if region_lower not in REGION_URLS:
+                raise ValueError(f"Invalid region '{region}'. Must be one of: {', '.join(REGION_URLS.keys())}")
+            self.base_url = REGION_URLS[region_lower]
+        else:
+            self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.user_id = user_id
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.region = region
         self._client: Optional[httpx.Client] = None
 
     @property
@@ -750,6 +764,7 @@ class AsyncBlindfold:
         user_id: Optional[str] = None,
         max_retries: int = 2,
         retry_delay: float = 0.5,
+        region: Optional[str] = None,
     ) -> None:
         """
         Initialize async Blindfold client.
@@ -761,13 +776,21 @@ class AsyncBlindfold:
             user_id: Optional user ID to track who is making the request
             max_retries: Maximum number of retries on transient errors (default: 2, 0 to disable)
             retry_delay: Initial delay in seconds before first retry (default: 0.5)
+            region: Optional region for data residency ("eu" or "us"). Overrides base_url if base_url is default.
         """
         self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
+        if region and base_url == DEFAULT_BASE_URL:
+            region_lower = region.lower()
+            if region_lower not in REGION_URLS:
+                raise ValueError(f"Invalid region '{region}'. Must be one of: {', '.join(REGION_URLS.keys())}")
+            self.base_url = REGION_URLS[region_lower]
+        else:
+            self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.user_id = user_id
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.region = region
         self._client: Optional[httpx.AsyncClient] = None
 
     @property

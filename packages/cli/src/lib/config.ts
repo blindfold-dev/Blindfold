@@ -6,7 +6,13 @@ import { ConfigError } from './errors.js';
 interface Config {
   apiKey?: string;
   baseUrl?: string;
+  region?: string;
 }
+
+const REGION_URLS: Record<string, string> = {
+  eu: 'https://eu-api.blindfold.dev',
+  us: 'https://us-api.blindfold.dev',
+};
 
 function getConfigDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
@@ -56,11 +62,26 @@ export function resolveApiKey(flagValue?: string): string {
   return key;
 }
 
-export function resolveBaseUrl(flagValue?: string): string {
-  return (
-    flagValue ||
-    process.env.BLINDFOLD_BASE_URL ||
-    loadConfig().baseUrl ||
-    'https://api.blindfold.dev'
-  );
+export function resolveRegion(flagValue?: string): string | undefined {
+  return flagValue || process.env.BLINDFOLD_REGION || loadConfig().region;
+}
+
+export function resolveBaseUrl(flagValue?: string, regionFlag?: string): string {
+  if (flagValue) return flagValue;
+  if (process.env.BLINDFOLD_BASE_URL) return process.env.BLINDFOLD_BASE_URL;
+  const config = loadConfig();
+  if (config.baseUrl) return config.baseUrl;
+
+  const region = resolveRegion(regionFlag);
+  if (region) {
+    const url = REGION_URLS[region.toLowerCase()];
+    if (!url) {
+      throw new ConfigError(
+        `Invalid region '${region}'. Must be one of: ${Object.keys(REGION_URLS).join(', ')}`
+      );
+    }
+    return url;
+  }
+
+  return 'https://api.blindfold.dev';
 }

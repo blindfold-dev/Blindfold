@@ -18,7 +18,7 @@ export function registerHashCommand(program: Command): void {
   cmd.action(async (text: string | undefined, options: Record<string, string>) => {
     const globalOpts = program.opts();
     const apiKey = resolveApiKey(globalOpts.apiKey);
-    const baseUrl = resolveBaseUrl(globalOpts.baseUrl);
+    const baseUrl = resolveBaseUrl(globalOpts.baseUrl, globalOpts.region);
     const api = createApiRequest(apiKey, baseUrl);
 
     if (options.batch) {
