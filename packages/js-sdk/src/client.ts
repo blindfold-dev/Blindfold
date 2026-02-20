@@ -15,6 +15,8 @@ import type {
   HashResponse,
   EncryptConfig,
   EncryptResponse,
+  ImageDetectConfig,
+  ImageDetectResponse,
   BatchResponse,
   APIErrorResponse,
 } from './types'
@@ -305,6 +307,107 @@ export class Blindfold {
       text,
       ...config,
     })
+  }
+
+  /**
+   * Detect PII in an image using OCR + entity detection
+   *
+   * Uploads an image, extracts text via Tesseract OCR, then runs
+   * PII detection on the extracted text.
+   *
+   * @param file - Image file as Blob (browser) or Buffer (Node.js)
+   * @param config - Optional configuration (language, entities, score_threshold, policy)
+   * @returns Promise with extracted text and detected entities
+   */
+  async imageDetect(file: Blob | Buffer, config?: ImageDetectConfig): Promise<ImageDetectResponse> {
+    const url = `${this.baseUrl}/file/detect`
+
+    const headers: Record<string, string> = {
+      'X-API-Key': this.apiKey,
+    }
+
+    if (this.userId) {
+      headers['X-Blindfold-User-Id'] = this.userId
+    }
+
+    const formData = new FormData()
+    if (file instanceof Blob) {
+      formData.append('file', file)
+    } else {
+      // Node.js Buffer
+      formData.append('file', new Blob([file]), 'image.png')
+    }
+
+    formData.append('language', config?.language ?? 'eng')
+    if (config?.entities) {
+      formData.append('entities', config.entities.join(','))
+    }
+    if (config?.score_threshold !== undefined) {
+      formData.append('score_threshold', String(config.score_threshold))
+    }
+    if (config?.policy) {
+      formData.append('policy', config.policy)
+    }
+
+    let lastError: Error = new NetworkError('Request failed')
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+        })
+
+        if (response.status === 401 || response.status === 403) {
+          throw new AuthenticationError('Authentication failed. Please check your API key.')
+        }
+
+        if (!response.ok) {
+          let errorMessage = `API request failed with status ${response.status}`
+          let responseBody: unknown
+
+          try {
+            responseBody = await response.json()
+            const errorData = responseBody as APIErrorResponse
+            errorMessage = errorData.detail || errorData.message || errorMessage
+          } catch {
+            errorMessage = `${errorMessage}: ${response.statusText}`
+          }
+
+          throw new APIError(errorMessage, response.status, responseBody)
+        }
+
+        return (await response.json()) as ImageDetectResponse
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          throw error
+        }
+
+        if (error instanceof APIError) {
+          if (RETRYABLE_STATUS_CODES.has(error.statusCode) && attempt < this.maxRetries) {
+            await sleep(this.retryWait(attempt, error))
+            continue
+          }
+          throw error
+        }
+
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          lastError = new NetworkError(
+            'Network request failed. Please check your connection and the API URL.'
+          )
+          if (attempt < this.maxRetries) {
+            await sleep(this.retryWait(attempt))
+            continue
+          }
+          throw lastError
+        }
+
+        throw new NetworkError(error instanceof Error ? error.message : 'Unknown error occurred')
+      }
+    }
+
+    throw lastError
   }
 
   // ===== Batch methods =====

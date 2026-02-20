@@ -7,6 +7,8 @@ export type {
   TokenizeResponse,
   DetokenizeResponse,
   DetectedEntity,
+  ImageDetectConfig,
+  ImageDetectResponse,
   BatchResponse,
   APIErrorResponse,
 } from './types'

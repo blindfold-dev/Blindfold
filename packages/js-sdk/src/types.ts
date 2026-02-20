@@ -229,6 +229,36 @@ export interface EncryptResponse {
 }
 
 /**
+ * Configuration options for image PII detection
+ */
+export interface ImageDetectConfig {
+  /** Tesseract language code (default: "eng") */
+  language?: string
+  /** Comma-separated entity types to detect */
+  entities?: string[]
+  /** Minimum confidence score for entity detection (0.0-1.0) */
+  score_threshold?: number
+  /** Policy name to use for detection configuration */
+  policy?: string
+}
+
+/**
+ * Response from image detect endpoint
+ */
+export interface ImageDetectResponse {
+  /** Text extracted from the image via OCR */
+  extracted_text: string
+  /** List of detected entities */
+  detected_entities: DetectedEntity[]
+  /** Count of detected entities */
+  entities_count: number
+  /** Average OCR confidence score (0-100) */
+  ocr_confidence: number | null
+  /** Tesseract language code used for OCR */
+  language_used: string
+}
+
+/**
  * Response wrapper for batch processing
  */
 export interface BatchResponse {

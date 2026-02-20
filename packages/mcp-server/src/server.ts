@@ -23,6 +23,7 @@ const thresholdParam = z
   .describe('Minimum confidence score (0.0 to 1.0) for entity detection');
 
 type ApiRequestFn = (endpoint: string, body: Record<string, unknown>) => Promise<unknown>;
+type ApiMultipartRequestFn = (endpoint: string, formData: FormData) => Promise<unknown>;
 
 /** Build body with text or texts, plus optional config fields. */
 function buildBody(
@@ -55,10 +56,10 @@ function optionals(obj: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
-export function createServer(apiRequest: ApiRequestFn): McpServer {
+export function createServer(apiRequest: ApiRequestFn, apiMultipartRequest?: ApiMultipartRequestFn): McpServer {
   const server = new McpServer({
     name: 'blindfold',
-    version: '1.3.0',
+    version: '1.4.0',
   });
 
   // --- detect ---
@@ -284,6 +285,47 @@ Accepts multiple samples for comprehensive analysis.`,
       if (threshold !== undefined) body.threshold = threshold;
 
       const result = await apiRequest('/discover', body);
+      return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  // --- image detect ---
+  server.tool(
+    'blindfold_image_detect',
+    `Detect PII in an image using OCR + entity detection.
+Extracts text from the image using Tesseract OCR, then runs PII detection on the extracted text.
+Accepts base64-encoded image data (MCP tools cannot send binary).
+Supports JPEG, PNG, TIFF, BMP, and WebP images.
+
+Example: Upload a screenshot of an email → detects names, email addresses, phone numbers in the image text.`,
+    {
+      image_base64: z.string().describe('Base64-encoded image data'),
+      language: z.string().optional().describe('Tesseract language code (default: "eng"). Examples: "eng", "deu", "fra", "spa"'),
+      policy: policyParam,
+      entities: entitiesParam,
+      score_threshold: thresholdParam,
+    },
+    async ({ image_base64, language, policy, entities, score_threshold }) => {
+      if (!apiMultipartRequest) {
+        return { content: [{ type: 'text' as const, text: 'Image detection not available: multipart request support not configured' }] };
+      }
+
+      // Decode base64 to binary
+      const binaryData = Buffer.from(image_base64, 'base64');
+      const formData = new FormData();
+      formData.append('file', new Blob([binaryData]), 'image.png');
+      formData.append('language', language ?? 'eng');
+      if (entities) {
+        formData.append('entities', entities.join(','));
+      }
+      if (score_threshold !== undefined) {
+        formData.append('score_threshold', String(score_threshold));
+      }
+      if (policy) {
+        formData.append('policy', policy);
+      }
+
+      const result = await apiMultipartRequest('/file/detect', formData);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
   );

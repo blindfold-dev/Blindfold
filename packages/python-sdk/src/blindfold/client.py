@@ -1,9 +1,11 @@
 """Blindfold client for tokenization and detokenization"""
 
 import asyncio
+import os
 import random
 import time
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 from pydantic import ValidationError
@@ -18,6 +20,7 @@ from .models import (
     DetokenizeResponse,
     EncryptResponse,
     HashResponse,
+    ImageDetectResponse,
     MaskResponse,
     RedactResponse,
     SynthesizeResponse,
@@ -589,6 +592,84 @@ class Blindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    def image_detect(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageDetectResponse:
+        """
+        Detect PII in an image using OCR + entity detection.
+
+        Uploads an image, extracts text via Tesseract OCR, then runs
+        PII detection on the extracted text.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            entities: Optional list of entities to detect (comma-separated in API)
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageDetectResponse with extracted text and detected entities
+        """
+        if isinstance(image, (str, Path)):
+            path = Path(image)
+            image_bytes = path.read_bytes()
+            filename = path.name
+        else:
+            image_bytes = image
+            filename = "image.png"
+
+        files = {"file": (filename, image_bytes)}
+        data: Dict[str, Any] = {"language": language}
+        if entities is not None:
+            data["entities"] = ",".join(entities)
+        if score_threshold is not None:
+            data["score_threshold"] = str(score_threshold)
+        if policy is not None:
+            data["policy"] = policy
+
+        last_exception: Exception = NetworkError("Request failed")
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self.client.post(
+                    "/file/detect",
+                    files=files,
+                    data=data,
+                )
+                response_data = self._handle_response(response)
+                try:
+                    return ImageDetectResponse(**response_data)
+                except ValidationError as e:
+                    raise APIError(
+                        f"Invalid response format: {str(e)}", 200, response_data
+                    ) from e
+            except (NetworkError, APIError) as e:
+                last_exception = e
+                if isinstance(e, APIError) and e.status_code not in RETRYABLE_STATUS_CODES:
+                    raise
+                if attempt < self.max_retries:
+                    time.sleep(self._retry_wait(attempt, e if isinstance(e, APIError) else None))
+                    continue
+                raise
+            except AuthenticationError:
+                raise
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_exception = NetworkError(
+                    f"Network request failed: {str(e)}"
+                )
+                if attempt < self.max_retries:
+                    time.sleep(self._retry_wait(attempt))
+                    continue
+                raise last_exception from e
+
+        raise last_exception
 
     # ===== Batch methods =====
 
@@ -1306,6 +1387,84 @@ class AsyncBlindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    async def image_detect(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageDetectResponse:
+        """
+        Detect PII in an image using OCR + entity detection.
+
+        Uploads an image, extracts text via Tesseract OCR, then runs
+        PII detection on the extracted text.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            entities: Optional list of entities to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageDetectResponse with extracted text and detected entities
+        """
+        if isinstance(image, (str, Path)):
+            path = Path(image)
+            image_bytes = path.read_bytes()
+            filename = path.name
+        else:
+            image_bytes = image
+            filename = "image.png"
+
+        files = {"file": (filename, image_bytes)}
+        data: Dict[str, Any] = {"language": language}
+        if entities is not None:
+            data["entities"] = ",".join(entities)
+        if score_threshold is not None:
+            data["score_threshold"] = str(score_threshold)
+        if policy is not None:
+            data["policy"] = policy
+
+        last_exception: Exception = NetworkError("Request failed")
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self.client.post(
+                    "/file/detect",
+                    files=files,
+                    data=data,
+                )
+                response_data = self._handle_response(response)
+                try:
+                    return ImageDetectResponse(**response_data)
+                except ValidationError as e:
+                    raise APIError(
+                        f"Invalid response format: {str(e)}", 200, response_data
+                    ) from e
+            except (NetworkError, APIError) as e:
+                last_exception = e
+                if isinstance(e, APIError) and e.status_code not in RETRYABLE_STATUS_CODES:
+                    raise
+                if attempt < self.max_retries:
+                    await asyncio.sleep(self._retry_wait(attempt, e if isinstance(e, APIError) else None))
+                    continue
+                raise
+            except AuthenticationError:
+                raise
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_exception = NetworkError(
+                    f"Network request failed: {str(e)}"
+                )
+                if attempt < self.max_retries:
+                    await asyncio.sleep(self._retry_wait(attempt))
+                    continue
+                raise last_exception from e
+
+        raise last_exception
 
     # ===== Batch methods =====
 

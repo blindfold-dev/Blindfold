@@ -174,6 +174,51 @@ export function printBatchResult(
   }
 }
 
+export function printImageDetectResult(
+  result: {
+    extracted_text: string;
+    detected_entities: DetectedEntityOutput[];
+    entities_count: number;
+    ocr_confidence: number | null;
+    language_used: string;
+  },
+  opts: OutputOptions
+): void {
+  if (opts.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (opts.quiet) {
+    for (const e of result.detected_entities) {
+      console.log(e.type);
+    }
+    return;
+  }
+
+  console.log(c.bold('OCR Extracted Text:'));
+  console.log(result.extracted_text || c.dim('(no text detected)'));
+  console.log();
+
+  if (result.ocr_confidence !== null) {
+    console.log(c.dim(`OCR confidence: ${result.ocr_confidence}%  Language: ${result.language_used}`));
+  }
+
+  if (result.detected_entities.length === 0) {
+    console.log(c.dim('No entities detected.'));
+    return;
+  }
+
+  console.log();
+  console.log(c.bold(`${result.entities_count} entities detected:`));
+  console.log();
+  for (const e of result.detected_entities) {
+    console.log(
+      `  ${c.cyan(e.type.padEnd(20))} ${c.yellow(`"${e.text}"`)}  ${c.dim(`score: ${(e.score * 100).toFixed(0)}%  pos: ${e.start}-${e.end}`)}`
+    );
+  }
+}
+
 export function printDiscoverResult(
   result: unknown,
   opts: OutputOptions

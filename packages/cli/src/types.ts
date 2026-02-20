@@ -33,6 +33,14 @@ export interface EncryptResponse extends TextTransformResponse {
   encryption_key?: string;
 }
 
+export interface ImageDetectResponse {
+  extracted_text: string;
+  detected_entities: DetectedEntity[];
+  entities_count: number;
+  ocr_confidence: number | null;
+  language_used: string;
+}
+
 export interface BatchResponse {
   results: Record<string, unknown>[];
   total: number;

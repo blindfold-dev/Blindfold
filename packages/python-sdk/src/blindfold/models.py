@@ -114,6 +114,22 @@ class EncryptResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ImageDetectResponse(BaseModel):
+    """Response from image detect endpoint"""
+
+    extracted_text: str = Field(..., description="Text extracted from the image via OCR")
+    detected_entities: List[DetectedEntity] = Field(
+        ..., description="List of detected entities"
+    )
+    entities_count: int = Field(..., description="Count of detected entities")
+    ocr_confidence: Optional[float] = Field(
+        default=None, description="Average OCR confidence score (0-100)"
+    )
+    language_used: str = Field(..., description="Tesseract language code used for OCR")
+
+    model_config = ConfigDict(frozen=True)
+
+
 class BatchResponse(BaseModel):
     """Response from batch processing endpoints"""
 
