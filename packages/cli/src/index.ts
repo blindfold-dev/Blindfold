@@ -10,6 +10,12 @@ import { registerHashCommand } from './commands/hash.js';
 import { registerEncryptCommand } from './commands/encrypt.js';
 import { registerDiscoverCommand } from './commands/discover.js';
 import { registerImageDetectCommand } from './commands/image-detect.js';
+import { registerImageTokenizeCommand } from './commands/image-tokenize.js';
+import { registerImageRedactCommand } from './commands/image-redact.js';
+import { registerImageMaskCommand } from './commands/image-mask.js';
+import { registerImageSynthesizeCommand } from './commands/image-synthesize.js';
+import { registerImageHashCommand } from './commands/image-hash.js';
+import { registerImageEncryptCommand } from './commands/image-encrypt.js';
 import { AuthenticationError, ConfigError, InputError } from './lib/errors.js';
 
 const program = new Command();
@@ -17,7 +23,7 @@ const program = new Command();
 program
   .name('blindfold')
   .description('Blindfold CLI — detect and protect PII from the terminal')
-  .version('1.4.0')
+  .version('1.5.0')
   .option('--api-key <key>', 'API key (overrides BLINDFOLD_API_KEY env var)')
   .option('--base-url <url>', 'API base URL')
   .option('--region <region>', 'API region for data residency (eu or us)')
@@ -35,6 +41,12 @@ registerHashCommand(program);
 registerEncryptCommand(program);
 registerDiscoverCommand(program);
 registerImageDetectCommand(program);
+registerImageTokenizeCommand(program);
+registerImageRedactCommand(program);
+registerImageMaskCommand(program);
+registerImageSynthesizeCommand(program);
+registerImageHashCommand(program);
+registerImageEncryptCommand(program);
 
 program.parseAsync(process.argv).catch((err) => {
   if (err instanceof AuthenticationError) {

@@ -130,6 +130,24 @@ class ImageDetectResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ImageProcessResponse(BaseModel):
+    """Response from image processing endpoints (tokenize, redact, mask, etc.)"""
+
+    image: bytes = Field(..., description="Processed PNG image bytes")
+    detected_entities: List[DetectedEntity] = Field(
+        default_factory=list, description="List of detected entities"
+    )
+    entities_count: int = Field(default=0, description="Count of detected entities")
+    mapping: Dict[str, str] = Field(
+        default_factory=dict, description="Mapping of original values to tokens"
+    )
+    ocr_confidence: Optional[float] = Field(
+        default=None, description="Average OCR confidence score (0-100)"
+    )
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+
 class BatchResponse(BaseModel):
     """Response from batch processing endpoints"""
 

@@ -7,9 +7,9 @@ from .errors import (
     BlindfoldError,
     NetworkError,
 )
-from .models import BatchResponse, DetectedEntity, DetectResponse, DetokenizeResponse, ImageDetectResponse, TokenizeResponse
+from .models import BatchResponse, DetectedEntity, DetectResponse, DetokenizeResponse, ImageDetectResponse, ImageProcessResponse, TokenizeResponse
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 __all__ = [
     "Blindfold",
@@ -23,5 +23,6 @@ __all__ = [
     "DetokenizeResponse",
     "DetectedEntity",
     "ImageDetectResponse",
+    "ImageProcessResponse",
     "BatchResponse",
 ]

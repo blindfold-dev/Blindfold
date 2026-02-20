@@ -1,5 +1,5 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createApiRequest, createApiMultipartRequest } from './api.js';
+import { createApiRequest, createApiMultipartRequest, createApiMultipartImageRequest } from './api.js';
 import { createServer } from './server.js';
 
 const REGION_URLS: Record<string, string> = {
@@ -32,7 +32,8 @@ if (!API_KEY) {
 
 const apiRequest = createApiRequest(API_KEY, BASE_URL);
 const apiMultipartRequest = createApiMultipartRequest(API_KEY, BASE_URL);
-const server = createServer(apiRequest, apiMultipartRequest);
+const apiMultipartImageRequest = createApiMultipartImageRequest(API_KEY, BASE_URL);
+const server = createServer(apiRequest, apiMultipartRequest, apiMultipartImageRequest);
 
 async function main() {
   const transport = new StdioServerTransport();

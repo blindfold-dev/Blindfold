@@ -16,11 +16,13 @@ RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 from .models import (
     APIErrorResponse,
     BatchResponse,
+    DetectedEntity,
     DetectResponse,
     DetokenizeResponse,
     EncryptResponse,
     HashResponse,
     ImageDetectResponse,
+    ImageProcessResponse,
     MaskResponse,
     RedactResponse,
     SynthesizeResponse,
@@ -670,6 +672,323 @@ class Blindfold:
                 raise last_exception from e
 
         raise last_exception
+
+    # ===== Image processing methods =====
+
+    @staticmethod
+    def _parse_image_response(response: httpx.Response) -> ImageProcessResponse:
+        """Parse an image processing response (binary PNG + metadata headers)."""
+        import json as _json
+
+        entities_raw = response.headers.get("x-detected-entities", "[]")
+        mapping_raw = response.headers.get("x-mapping", "{}")
+        confidence_raw = response.headers.get("x-ocr-confidence", "")
+
+        try:
+            detected_entities_data = _json.loads(entities_raw)
+        except (ValueError, TypeError):
+            detected_entities_data = []
+
+        try:
+            mapping = _json.loads(mapping_raw)
+        except (ValueError, TypeError):
+            mapping = {}
+
+        entities_count = int(response.headers.get("x-entities-count", "0"))
+        ocr_confidence: Optional[float] = None
+        if confidence_raw:
+            try:
+                ocr_confidence = float(confidence_raw)
+            except (ValueError, TypeError):
+                pass
+
+        detected_entities = [
+            DetectedEntity(**e) if isinstance(e, dict) else e
+            for e in detected_entities_data
+        ]
+
+        return ImageProcessResponse(
+            image=response.content,
+            detected_entities=detected_entities,
+            entities_count=entities_count,
+            mapping=mapping,
+            ocr_confidence=ocr_confidence,
+        )
+
+    def _image_process_request(
+        self,
+        endpoint: str,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+        extra_data: Optional[Dict[str, str]] = None,
+    ) -> ImageProcessResponse:
+        """Send a multipart image processing request and return binary response."""
+        if isinstance(image, (str, Path)):
+            path = Path(image)
+            image_bytes = path.read_bytes()
+            filename = path.name
+        else:
+            image_bytes = image
+            filename = "image.png"
+
+        files = {"file": (filename, image_bytes)}
+        data: Dict[str, Any] = {"language": language}
+        if entities is not None:
+            data["entities"] = ",".join(entities)
+        if score_threshold is not None:
+            data["score_threshold"] = str(score_threshold)
+        if policy is not None:
+            data["policy"] = policy
+        if extra_data:
+            data.update(extra_data)
+
+        last_exception: Exception = NetworkError("Request failed")
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self.client.post(
+                    f"/file/{endpoint}",
+                    files=files,
+                    data=data,
+                )
+
+                if response.status_code in (401, 403):
+                    raise AuthenticationError(
+                        "Authentication failed. Please check your API key."
+                    )
+
+                if not response.is_success:
+                    error_message = f"API request failed with status {response.status_code}"
+                    response_body = None
+                    try:
+                        response_body = response.json()
+                        error_data = APIErrorResponse(**response_body)
+                        error_message = error_data.detail or error_data.message or error_message
+                    except Exception:
+                        error_message = f"{error_message}: {response.text}"
+                    raise APIError(error_message, response.status_code, response_body)
+
+                content_type = response.headers.get("content-type", "")
+                if content_type.startswith("image/"):
+                    return self._parse_image_response(response)
+
+                # Fallback: JSON response (e.g. when no PII detected and server returns JSON)
+                response_data = response.json()
+                return ImageProcessResponse(
+                    image=b"",
+                    detected_entities=[
+                        DetectedEntity(**e) if isinstance(e, dict) else e
+                        for e in response_data.get("detected_entities", [])
+                    ],
+                    entities_count=response_data.get("entities_count", 0),
+                    mapping=response_data.get("mapping", {}),
+                    ocr_confidence=response_data.get("ocr_confidence"),
+                )
+
+            except (NetworkError, APIError) as e:
+                last_exception = e
+                if isinstance(e, APIError) and e.status_code not in RETRYABLE_STATUS_CODES:
+                    raise
+                if attempt < self.max_retries:
+                    time.sleep(self._retry_wait(attempt, e if isinstance(e, APIError) else None))
+                    continue
+                raise
+            except AuthenticationError:
+                raise
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_exception = NetworkError(
+                    f"Network request failed: {str(e)}"
+                )
+                if attempt < self.max_retries:
+                    time.sleep(self._retry_wait(attempt))
+                    continue
+                raise last_exception from e
+
+        raise last_exception
+
+    def image_tokenize(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Tokenize PII in an image. Returns a PNG with PII replaced by token labels.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return self._image_process_request(
+            "tokenize", image, language, entities, score_threshold, policy,
+        )
+
+    def image_redact(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Redact PII in an image. Returns a PNG with PII covered by black boxes.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return self._image_process_request(
+            "redact", image, language, entities, score_threshold, policy,
+        )
+
+    def image_mask(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        chars_to_show: int = 3,
+        from_end: bool = False,
+        masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Mask PII in an image. Returns a PNG with PII partially masked.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            chars_to_show: Number of characters to leave visible (default: 3)
+            from_end: Show characters from end instead of start (default: False)
+            masking_char: Character to use for masking (default: "*")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        extra: Dict[str, str] = {
+            "chars_to_show": str(chars_to_show),
+            "masking_char": masking_char,
+        }
+        if from_end:
+            extra["from_end"] = "true"
+        return self._image_process_request(
+            "mask", image, language, entities, score_threshold, policy, extra,
+        )
+
+    def image_synthesize(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        synthesis_language: str = "en",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Synthesize PII in an image. Returns a PNG with PII replaced by realistic fake data.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            synthesis_language: Language for synthetic data generation (default: "en")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return self._image_process_request(
+            "synthesize", image, language, entities, score_threshold, policy,
+            {"synthesis_language": synthesis_language},
+        )
+
+    def image_hash(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        hash_type: str = "sha256",
+        hash_prefix: str = "HASH_",
+        hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Hash PII in an image. Returns a PNG with PII replaced by deterministic hash values.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            hash_type: Hash algorithm (default: "sha256")
+            hash_prefix: Prefix for hash values (default: "HASH_")
+            hash_length: Length of hash output (default: 16)
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return self._image_process_request(
+            "hash", image, language, entities, score_threshold, policy,
+            {
+                "hash_type": hash_type,
+                "hash_prefix": hash_prefix,
+                "hash_length": str(hash_length),
+            },
+        )
+
+    def image_encrypt(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Encrypt PII in an image. Returns a PNG with PII replaced by encrypted values.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            encryption_key: Encryption key (min 16 chars, uses tenant key if not provided)
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        extra: Dict[str, str] = {}
+        if encryption_key is not None:
+            extra["encryption_key"] = encryption_key
+        return self._image_process_request(
+            "encrypt", image, language, entities, score_threshold, policy, extra,
+        )
 
     # ===== Batch methods =====
 
@@ -1465,6 +1784,282 @@ class AsyncBlindfold:
                 raise last_exception from e
 
         raise last_exception
+
+    # ===== Image processing methods =====
+
+    async def _image_process_request(
+        self,
+        endpoint: str,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+        extra_data: Optional[Dict[str, str]] = None,
+    ) -> ImageProcessResponse:
+        """Send a multipart image processing request and return binary response."""
+        if isinstance(image, (str, Path)):
+            path = Path(image)
+            image_bytes = path.read_bytes()
+            filename = path.name
+        else:
+            image_bytes = image
+            filename = "image.png"
+
+        files = {"file": (filename, image_bytes)}
+        data: Dict[str, Any] = {"language": language}
+        if entities is not None:
+            data["entities"] = ",".join(entities)
+        if score_threshold is not None:
+            data["score_threshold"] = str(score_threshold)
+        if policy is not None:
+            data["policy"] = policy
+        if extra_data:
+            data.update(extra_data)
+
+        last_exception: Exception = NetworkError("Request failed")
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self.client.post(
+                    f"/file/{endpoint}",
+                    files=files,
+                    data=data,
+                )
+
+                if response.status_code in (401, 403):
+                    raise AuthenticationError(
+                        "Authentication failed. Please check your API key."
+                    )
+
+                if not response.is_success:
+                    error_message = f"API request failed with status {response.status_code}"
+                    response_body = None
+                    try:
+                        response_body = response.json()
+                        error_data = APIErrorResponse(**response_body)
+                        error_message = error_data.detail or error_data.message or error_message
+                    except Exception:
+                        error_message = f"{error_message}: {response.text}"
+                    raise APIError(error_message, response.status_code, response_body)
+
+                content_type = response.headers.get("content-type", "")
+                if content_type.startswith("image/"):
+                    return Blindfold._parse_image_response(response)
+
+                response_data = response.json()
+                return ImageProcessResponse(
+                    image=b"",
+                    detected_entities=[
+                        DetectedEntity(**e) if isinstance(e, dict) else e
+                        for e in response_data.get("detected_entities", [])
+                    ],
+                    entities_count=response_data.get("entities_count", 0),
+                    mapping=response_data.get("mapping", {}),
+                    ocr_confidence=response_data.get("ocr_confidence"),
+                )
+
+            except (NetworkError, APIError) as e:
+                last_exception = e
+                if isinstance(e, APIError) and e.status_code not in RETRYABLE_STATUS_CODES:
+                    raise
+                if attempt < self.max_retries:
+                    await asyncio.sleep(self._retry_wait(attempt, e if isinstance(e, APIError) else None))
+                    continue
+                raise
+            except AuthenticationError:
+                raise
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_exception = NetworkError(
+                    f"Network request failed: {str(e)}"
+                )
+                if attempt < self.max_retries:
+                    await asyncio.sleep(self._retry_wait(attempt))
+                    continue
+                raise last_exception from e
+
+        raise last_exception
+
+    async def image_tokenize(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Tokenize PII in an image. Returns a PNG with PII replaced by token labels.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return await self._image_process_request(
+            "tokenize", image, language, entities, score_threshold, policy,
+        )
+
+    async def image_redact(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Redact PII in an image. Returns a PNG with PII covered by black boxes.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return await self._image_process_request(
+            "redact", image, language, entities, score_threshold, policy,
+        )
+
+    async def image_mask(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        chars_to_show: int = 3,
+        from_end: bool = False,
+        masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Mask PII in an image. Returns a PNG with PII partially masked.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            chars_to_show: Number of characters to leave visible (default: 3)
+            from_end: Show characters from end instead of start (default: False)
+            masking_char: Character to use for masking (default: "*")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        extra: Dict[str, str] = {
+            "chars_to_show": str(chars_to_show),
+            "masking_char": masking_char,
+        }
+        if from_end:
+            extra["from_end"] = "true"
+        return await self._image_process_request(
+            "mask", image, language, entities, score_threshold, policy, extra,
+        )
+
+    async def image_synthesize(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        synthesis_language: str = "en",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Synthesize PII in an image. Returns a PNG with PII replaced by realistic fake data.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            synthesis_language: Language for synthetic data generation (default: "en")
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return await self._image_process_request(
+            "synthesize", image, language, entities, score_threshold, policy,
+            {"synthesis_language": synthesis_language},
+        )
+
+    async def image_hash(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        hash_type: str = "sha256",
+        hash_prefix: str = "HASH_",
+        hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Hash PII in an image. Returns a PNG with PII replaced by deterministic hash values.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            hash_type: Hash algorithm (default: "sha256")
+            hash_prefix: Prefix for hash values (default: "HASH_")
+            hash_length: Length of hash output (default: 16)
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        return await self._image_process_request(
+            "hash", image, language, entities, score_threshold, policy,
+            {
+                "hash_type": hash_type,
+                "hash_prefix": hash_prefix,
+                "hash_length": str(hash_length),
+            },
+        )
+
+    async def image_encrypt(
+        self,
+        image: Union[str, Path, bytes],
+        language: str = "eng",
+        encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> ImageProcessResponse:
+        """
+        Encrypt PII in an image. Returns a PNG with PII replaced by encrypted values.
+
+        Args:
+            image: File path (str/Path) or raw image bytes
+            language: Tesseract language code (default: "eng")
+            encryption_key: Encryption key (min 16 chars, uses tenant key if not provided)
+            entities: Optional list of entity types to detect
+            score_threshold: Optional minimum confidence score (0.0-1.0)
+            policy: Optional policy name to use
+
+        Returns:
+            ImageProcessResponse with processed image and metadata
+        """
+        extra: Dict[str, str] = {}
+        if encryption_key is not None:
+            extra["encryption_key"] = encryption_key
+        return await self._image_process_request(
+            "encrypt", image, language, entities, score_threshold, policy, extra,
+        )
 
     # ===== Batch methods =====
 

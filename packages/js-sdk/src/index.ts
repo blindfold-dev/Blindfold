@@ -9,6 +9,12 @@ export type {
   DetectedEntity,
   ImageDetectConfig,
   ImageDetectResponse,
+  ImageProcessConfig,
+  ImageMaskConfig,
+  ImageSynthesizeConfig,
+  ImageHashConfig,
+  ImageEncryptConfig,
+  ImageProcessResponse,
   BatchResponse,
   APIErrorResponse,
 } from './types'

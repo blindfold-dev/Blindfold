@@ -17,6 +17,12 @@ import type {
   EncryptResponse,
   ImageDetectConfig,
   ImageDetectResponse,
+  ImageProcessConfig,
+  ImageMaskConfig,
+  ImageSynthesizeConfig,
+  ImageHashConfig,
+  ImageEncryptConfig,
+  ImageProcessResponse,
   BatchResponse,
   APIErrorResponse,
 } from './types'
@@ -408,6 +414,229 @@ export class Blindfold {
     }
 
     throw lastError
+  }
+
+  // ===== Image processing methods =====
+
+  /**
+   * Send a multipart image processing request that returns binary PNG + metadata headers.
+   */
+  private async imageProcessRequest(
+    endpoint: string,
+    file: Blob | Buffer,
+    formFields: Record<string, string>,
+  ): Promise<ImageProcessResponse> {
+    const url = `${this.baseUrl}/file/${endpoint}`
+
+    const headers: Record<string, string> = {
+      'X-API-Key': this.apiKey,
+    }
+
+    if (this.userId) {
+      headers['X-Blindfold-User-Id'] = this.userId
+    }
+
+    const formData = new FormData()
+    if (file instanceof Blob) {
+      formData.append('file', file)
+    } else {
+      // Node.js Buffer
+      formData.append('file', new Blob([file]), 'image.png')
+    }
+
+    for (const [key, value] of Object.entries(formFields)) {
+      formData.append(key, value)
+    }
+
+    let lastError: Error = new NetworkError('Request failed')
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+        })
+
+        if (response.status === 401 || response.status === 403) {
+          throw new AuthenticationError('Authentication failed. Please check your API key.')
+        }
+
+        if (!response.ok) {
+          let errorMessage = `API request failed with status ${response.status}`
+          let responseBody: unknown
+
+          try {
+            responseBody = await response.json()
+            const errorData = responseBody as APIErrorResponse
+            errorMessage = errorData.detail || errorData.message || errorMessage
+          } catch {
+            errorMessage = `${errorMessage}: ${response.statusText}`
+          }
+
+          throw new APIError(errorMessage, response.status, responseBody)
+        }
+
+        const contentType = response.headers.get('content-type') || ''
+        if (contentType.startsWith('image/')) {
+          const imageBuffer = await response.arrayBuffer()
+
+          const entitiesRaw = response.headers.get('x-detected-entities') || '[]'
+          const mappingRaw = response.headers.get('x-mapping') || '{}'
+          const confidenceRaw = response.headers.get('x-ocr-confidence') || ''
+
+          let detectedEntities = []
+          try { detectedEntities = JSON.parse(entitiesRaw) } catch { /* empty */ }
+          let mapping: Record<string, string> = {}
+          try { mapping = JSON.parse(mappingRaw) } catch { /* empty */ }
+
+          return {
+            image: imageBuffer,
+            detected_entities: detectedEntities,
+            entities_count: parseInt(response.headers.get('x-entities-count') || '0', 10),
+            mapping,
+            ocr_confidence: confidenceRaw ? parseFloat(confidenceRaw) : null,
+          }
+        }
+
+        // Fallback: JSON response
+        const data = (await response.json()) as Record<string, unknown>
+        return {
+          image: new ArrayBuffer(0),
+          detected_entities: (data.detected_entities || []) as ImageProcessResponse['detected_entities'],
+          entities_count: (data.entities_count || 0) as number,
+          mapping: (data.mapping || {}) as Record<string, string>,
+          ocr_confidence: (data.ocr_confidence ?? null) as number | null,
+        }
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          throw error
+        }
+
+        if (error instanceof APIError) {
+          if (RETRYABLE_STATUS_CODES.has(error.statusCode) && attempt < this.maxRetries) {
+            await sleep(this.retryWait(attempt, error))
+            continue
+          }
+          throw error
+        }
+
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          lastError = new NetworkError(
+            'Network request failed. Please check your connection and the API URL.'
+          )
+          if (attempt < this.maxRetries) {
+            await sleep(this.retryWait(attempt))
+            continue
+          }
+          throw lastError
+        }
+
+        throw new NetworkError(error instanceof Error ? error.message : 'Unknown error occurred')
+      }
+    }
+
+    throw lastError
+  }
+
+  /**
+   * Build form fields for image processing from a config object.
+   */
+  private buildImageFormFields(config?: ImageProcessConfig, extra?: Record<string, string>): Record<string, string> {
+    const fields: Record<string, string> = {
+      language: config?.language ?? 'eng',
+    }
+    if (config?.entities) {
+      fields.entities = config.entities.join(',')
+    }
+    if (config?.score_threshold !== undefined) {
+      fields.score_threshold = String(config.score_threshold)
+    }
+    if (config?.policy) {
+      fields.policy = config.policy
+    }
+    if (extra) {
+      Object.assign(fields, extra)
+    }
+    return fields
+  }
+
+  /**
+   * Tokenize PII in an image. Returns a PNG with PII replaced by token labels.
+   *
+   * @param file - Image file as Blob (browser) or Buffer (Node.js)
+   * @param config - Optional configuration (language, entities, score_threshold, policy)
+   * @returns Promise with processed image and metadata
+   */
+  async imageTokenize(file: Blob | Buffer, config?: ImageProcessConfig): Promise<ImageProcessResponse> {
+    return this.imageProcessRequest('tokenize', file, this.buildImageFormFields(config))
+  }
+
+  /**
+   * Redact PII in an image. Returns a PNG with PII covered by black boxes.
+   *
+   * @param file - Image file as Blob (browser) or Buffer (Node.js)
+   * @param config - Optional configuration (language, entities, score_threshold, policy)
+   * @returns Promise with processed image and metadata
+   */
+  async imageRedact(file: Blob | Buffer, config?: ImageProcessConfig): Promise<ImageProcessResponse> {
+    return this.imageProcessRequest('redact', file, this.buildImageFormFields(config))
+  }
+
+  /**
+   * Mask PII in an image. Returns a PNG with PII partially masked.
+   *
+   * @param file - Image file as Blob (browser) or Buffer (Node.js)
+   * @param config - Optional configuration including masking parameters
+   * @returns Promise with processed image and metadata
+   */
+  async imageMask(file: Blob | Buffer, config?: ImageMaskConfig): Promise<ImageProcessResponse> {
+    const extra: Record<string, string> = {}
+    if (config?.chars_to_show !== undefined) extra.chars_to_show = String(config.chars_to_show)
+    if (config?.from_end) extra.from_end = 'true'
+    if (config?.masking_char) extra.masking_char = config.masking_char
+    return this.imageProcessRequest('mask', file, this.buildImageFormFields(config, extra))
+  }
+
+  /**
+   * Synthesize PII in an image. Returns a PNG with PII replaced by realistic fake data.
+   *
+   * @param file - Image file as Blob (browser) or Buffer (Node.js)
+   * @param config - Optional configuration including synthesis language
+   * @returns Promise with processed image and metadata
+   */
+  async imageSynthesize(file: Blob | Buffer, config?: ImageSynthesizeConfig): Promise<ImageProcessResponse> {
+    const extra: Record<string, string> = {}
+    if (config?.synthesis_language) extra.synthesis_language = config.synthesis_language
+    return this.imageProcessRequest('synthesize', file, this.buildImageFormFields(config, extra))
+  }
+
+  /**
+   * Hash PII in an image. Returns a PNG with PII replaced by deterministic hash values.
+   *
+   * @param file - Image file as Blob (browser) or Buffer (Node.js)
+   * @param config - Optional configuration including hash parameters
+   * @returns Promise with processed image and metadata
+   */
+  async imageHash(file: Blob | Buffer, config?: ImageHashConfig): Promise<ImageProcessResponse> {
+    const extra: Record<string, string> = {}
+    if (config?.hash_type) extra.hash_type = config.hash_type
+    if (config?.hash_prefix !== undefined) extra.hash_prefix = config.hash_prefix
+    if (config?.hash_length !== undefined) extra.hash_length = String(config.hash_length)
+    return this.imageProcessRequest('hash', file, this.buildImageFormFields(config, extra))
+  }
+
+  /**
+   * Encrypt PII in an image. Returns a PNG with PII replaced by encrypted values.
+   *
+   * @param file - Image file as Blob (browser) or Buffer (Node.js)
+   * @param config - Optional configuration including encryption key
+   * @returns Promise with processed image and metadata
+   */
+  async imageEncrypt(file: Blob | Buffer, config?: ImageEncryptConfig): Promise<ImageProcessResponse> {
+    const extra: Record<string, string> = {}
+    if (config?.encryption_key) extra.encryption_key = config.encryption_key
+    return this.imageProcessRequest('encrypt', file, this.buildImageFormFields(config, extra))
   }
 
   // ===== Batch methods =====

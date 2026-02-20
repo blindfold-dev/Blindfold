@@ -22,8 +22,11 @@ const thresholdParam = z
   .optional()
   .describe('Minimum confidence score (0.0 to 1.0) for entity detection');
 
+import type { ImageProcessResult } from './api.js';
+
 type ApiRequestFn = (endpoint: string, body: Record<string, unknown>) => Promise<unknown>;
 type ApiMultipartRequestFn = (endpoint: string, formData: FormData) => Promise<unknown>;
+type ApiMultipartImageRequestFn = (endpoint: string, formData: FormData) => Promise<ImageProcessResult>;
 
 /** Build body with text or texts, plus optional config fields. */
 function buildBody(
@@ -56,10 +59,10 @@ function optionals(obj: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
-export function createServer(apiRequest: ApiRequestFn, apiMultipartRequest?: ApiMultipartRequestFn): McpServer {
+export function createServer(apiRequest: ApiRequestFn, apiMultipartRequest?: ApiMultipartRequestFn, apiMultipartImageRequest?: ApiMultipartImageRequestFn): McpServer {
   const server = new McpServer({
     name: 'blindfold',
-    version: '1.4.0',
+    version: '1.5.0',
   });
 
   // --- detect ---
@@ -327,6 +330,204 @@ Example: Upload a screenshot of an email → detects names, email addresses, pho
 
       const result = await apiMultipartRequest('/file/detect', formData);
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  // --- Helper: build FormData for image processing tools ---
+  function buildImageFormData(
+    image_base64: string,
+    language: string | undefined,
+    policy: string | undefined,
+    entities: string[] | undefined,
+    score_threshold: number | undefined,
+    extra?: Record<string, string>,
+  ): FormData {
+    const binaryData = Buffer.from(image_base64, 'base64');
+    const formData = new FormData();
+    formData.append('file', new Blob([binaryData]), 'image.png');
+    formData.append('language', language ?? 'eng');
+    if (entities) formData.append('entities', entities.join(','));
+    if (score_threshold !== undefined) formData.append('score_threshold', String(score_threshold));
+    if (policy) formData.append('policy', policy);
+    if (extra) {
+      for (const [k, v] of Object.entries(extra)) {
+        formData.append(k, v);
+      }
+    }
+    return formData;
+  }
+
+  // --- Helper: format image processing result for MCP ---
+  function formatImageResult(result: ImageProcessResult) {
+    const metadata = {
+      entities_count: result.entities_count,
+      detected_entities: result.detected_entities,
+      mapping: result.mapping,
+      ocr_confidence: result.ocr_confidence,
+    };
+    return {
+      content: [
+        { type: 'image' as const, data: result.image.toString('base64'), mimeType: 'image/png' },
+        { type: 'text' as const, text: JSON.stringify(metadata, null, 2) },
+      ],
+    };
+  }
+
+  // --- image tokenize ---
+  server.tool(
+    'blindfold_image_tokenize',
+    `Tokenize PII in an image. Returns a PNG with PII regions replaced by token labels (e.g. <Person_1>).
+Accepts base64-encoded image data. Supports JPEG, PNG, TIFF, BMP, and WebP images.
+Returns: processed image + detected entities metadata.`,
+    {
+      image_base64: z.string().describe('Base64-encoded image data'),
+      language: z.string().optional().describe('Tesseract language code (default: "eng")'),
+      policy: policyParam,
+      entities: entitiesParam,
+      score_threshold: thresholdParam,
+    },
+    async ({ image_base64, language, policy, entities, score_threshold }) => {
+      if (!apiMultipartImageRequest) {
+        return { content: [{ type: 'text' as const, text: 'Image processing not available: multipart image request support not configured' }] };
+      }
+      const formData = buildImageFormData(image_base64, language, policy, entities, score_threshold);
+      const result = await apiMultipartImageRequest('/file/tokenize', formData);
+      return formatImageResult(result);
+    }
+  );
+
+  // --- image redact ---
+  server.tool(
+    'blindfold_image_redact',
+    `Redact PII in an image. Returns a PNG with PII regions covered by black boxes.
+Accepts base64-encoded image data. Supports JPEG, PNG, TIFF, BMP, and WebP images.
+Returns: processed image + detected entities metadata.`,
+    {
+      image_base64: z.string().describe('Base64-encoded image data'),
+      language: z.string().optional().describe('Tesseract language code (default: "eng")'),
+      policy: policyParam,
+      entities: entitiesParam,
+      score_threshold: thresholdParam,
+    },
+    async ({ image_base64, language, policy, entities, score_threshold }) => {
+      if (!apiMultipartImageRequest) {
+        return { content: [{ type: 'text' as const, text: 'Image processing not available: multipart image request support not configured' }] };
+      }
+      const formData = buildImageFormData(image_base64, language, policy, entities, score_threshold);
+      const result = await apiMultipartImageRequest('/file/redact', formData);
+      return formatImageResult(result);
+    }
+  );
+
+  // --- image mask ---
+  server.tool(
+    'blindfold_image_mask',
+    `Mask PII in an image. Returns a PNG with PII partially masked (e.g. "****-3456").
+Accepts base64-encoded image data. Supports JPEG, PNG, TIFF, BMP, and WebP images.
+Returns: processed image + detected entities metadata.`,
+    {
+      image_base64: z.string().describe('Base64-encoded image data'),
+      language: z.string().optional().describe('Tesseract language code (default: "eng")'),
+      policy: policyParam,
+      entities: entitiesParam,
+      score_threshold: thresholdParam,
+      masking_char: z.string().max(1).optional().describe('Character used for masking (default: "*")'),
+      chars_to_show: z.number().optional().describe('Number of characters to leave visible (default: 3)'),
+      from_end: z.boolean().optional().describe('Show visible characters from end instead of start'),
+    },
+    async ({ image_base64, language, policy, entities, score_threshold, masking_char, chars_to_show, from_end }) => {
+      if (!apiMultipartImageRequest) {
+        return { content: [{ type: 'text' as const, text: 'Image processing not available: multipart image request support not configured' }] };
+      }
+      const extra: Record<string, string> = {};
+      if (masking_char !== undefined) extra.masking_char = masking_char;
+      if (chars_to_show !== undefined) extra.chars_to_show = String(chars_to_show);
+      if (from_end) extra.from_end = 'true';
+      const formData = buildImageFormData(image_base64, language, policy, entities, score_threshold, extra);
+      const result = await apiMultipartImageRequest('/file/mask', formData);
+      return formatImageResult(result);
+    }
+  );
+
+  // --- image synthesize ---
+  server.tool(
+    'blindfold_image_synthesize',
+    `Synthesize PII in an image. Returns a PNG with PII replaced by realistic fake data.
+Accepts base64-encoded image data. Supports JPEG, PNG, TIFF, BMP, and WebP images.
+Returns: processed image + detected entities metadata.`,
+    {
+      image_base64: z.string().describe('Base64-encoded image data'),
+      language: z.string().optional().describe('Tesseract language code (default: "eng")'),
+      policy: policyParam,
+      entities: entitiesParam,
+      score_threshold: thresholdParam,
+      synthesis_language: z.string().optional().describe('Language for synthetic data (en, cs, de, fr, es, it, pl, sk)'),
+    },
+    async ({ image_base64, language, policy, entities, score_threshold, synthesis_language }) => {
+      if (!apiMultipartImageRequest) {
+        return { content: [{ type: 'text' as const, text: 'Image processing not available: multipart image request support not configured' }] };
+      }
+      const extra: Record<string, string> = {};
+      if (synthesis_language) extra.synthesis_language = synthesis_language;
+      const formData = buildImageFormData(image_base64, language, policy, entities, score_threshold, extra);
+      const result = await apiMultipartImageRequest('/file/synthesize', formData);
+      return formatImageResult(result);
+    }
+  );
+
+  // --- image hash ---
+  server.tool(
+    'blindfold_image_hash',
+    `Hash PII in an image. Returns a PNG with PII replaced by deterministic hash values.
+Accepts base64-encoded image data. Supports JPEG, PNG, TIFF, BMP, and WebP images.
+Returns: processed image + detected entities metadata.`,
+    {
+      image_base64: z.string().describe('Base64-encoded image data'),
+      language: z.string().optional().describe('Tesseract language code (default: "eng")'),
+      policy: policyParam,
+      entities: entitiesParam,
+      score_threshold: thresholdParam,
+      hash_type: z.string().optional().describe('Hash algorithm: "md5", "sha1", "sha256" (default)'),
+      hash_prefix: z.string().optional().describe('Prefix for hash values (default: "HASH_")'),
+      hash_length: z.number().optional().describe('Truncate hash to this many characters (default: 16)'),
+    },
+    async ({ image_base64, language, policy, entities, score_threshold, hash_type, hash_prefix, hash_length }) => {
+      if (!apiMultipartImageRequest) {
+        return { content: [{ type: 'text' as const, text: 'Image processing not available: multipart image request support not configured' }] };
+      }
+      const extra: Record<string, string> = {};
+      if (hash_type) extra.hash_type = hash_type;
+      if (hash_prefix !== undefined) extra.hash_prefix = hash_prefix;
+      if (hash_length !== undefined) extra.hash_length = String(hash_length);
+      const formData = buildImageFormData(image_base64, language, policy, entities, score_threshold, extra);
+      const result = await apiMultipartImageRequest('/file/hash', formData);
+      return formatImageResult(result);
+    }
+  );
+
+  // --- image encrypt ---
+  server.tool(
+    'blindfold_image_encrypt',
+    `Encrypt PII in an image. Returns a PNG with PII replaced by encrypted values.
+Accepts base64-encoded image data. Supports JPEG, PNG, TIFF, BMP, and WebP images.
+Returns: processed image + detected entities metadata.`,
+    {
+      image_base64: z.string().describe('Base64-encoded image data'),
+      language: z.string().optional().describe('Tesseract language code (default: "eng")'),
+      policy: policyParam,
+      entities: entitiesParam,
+      score_threshold: thresholdParam,
+      encryption_key: z.string().optional().describe('Encryption password (min 16 chars; server generates one if omitted)'),
+    },
+    async ({ image_base64, language, policy, entities, score_threshold, encryption_key }) => {
+      if (!apiMultipartImageRequest) {
+        return { content: [{ type: 'text' as const, text: 'Image processing not available: multipart image request support not configured' }] };
+      }
+      const extra: Record<string, string> = {};
+      if (encryption_key) extra.encryption_key = encryption_key;
+      const formData = buildImageFormData(image_base64, language, policy, entities, score_threshold, extra);
+      const result = await apiMultipartImageRequest('/file/encrypt', formData);
+      return formatImageResult(result);
     }
   );
 

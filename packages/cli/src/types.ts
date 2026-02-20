@@ -41,6 +41,13 @@ export interface ImageDetectResponse {
   language_used: string;
 }
 
+export interface ImageProcessMetadata {
+  entities_count: number;
+  detected_entities: DetectedEntity[];
+  mapping: Record<string, string>;
+  ocr_confidence: number | null;
+}
+
 export interface BatchResponse {
   results: Record<string, unknown>[];
   total: number;

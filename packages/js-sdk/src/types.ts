@@ -259,6 +259,76 @@ export interface ImageDetectResponse {
 }
 
 /**
+ * Configuration options for image processing (tokenize, redact)
+ */
+export interface ImageProcessConfig {
+  /** Tesseract language code (default: "eng") */
+  language?: string
+  /** Entity types to detect */
+  entities?: string[]
+  /** Minimum confidence score for entity detection (0.0-1.0) */
+  score_threshold?: number
+  /** Policy name to use for detection configuration */
+  policy?: string
+}
+
+/**
+ * Configuration options for image masking
+ */
+export interface ImageMaskConfig extends ImageProcessConfig {
+  /** Number of characters to show (default: 3) */
+  chars_to_show?: number
+  /** Whether to show characters from the end (default: false) */
+  from_end?: boolean
+  /** Character to use for masking (default: "*") */
+  masking_char?: string
+}
+
+/**
+ * Configuration options for image synthesis
+ */
+export interface ImageSynthesizeConfig extends ImageProcessConfig {
+  /** Language code for synthetic data generation (e.g., 'en', 'de') */
+  synthesis_language?: string
+}
+
+/**
+ * Configuration options for image hashing
+ */
+export interface ImageHashConfig extends ImageProcessConfig {
+  /** Hash algorithm to use (e.g., 'md5', 'sha1', 'sha256', 'sha512') */
+  hash_type?: string
+  /** Prefix to add before hash value (default: 'HASH_') */
+  hash_prefix?: string
+  /** Length of hash to display (default: 16) */
+  hash_length?: number
+}
+
+/**
+ * Configuration options for image encryption
+ */
+export interface ImageEncryptConfig extends ImageProcessConfig {
+  /** Optional encryption key (if not provided, tenant key will be used) */
+  encryption_key?: string
+}
+
+/**
+ * Response from image processing endpoints (tokenize, redact, mask, etc.)
+ */
+export interface ImageProcessResponse {
+  /** Processed PNG image as ArrayBuffer */
+  image: ArrayBuffer
+  /** List of detected entities */
+  detected_entities: DetectedEntity[]
+  /** Count of detected entities */
+  entities_count: number
+  /** Mapping of original values to tokens */
+  mapping: Record<string, string>
+  /** Average OCR confidence score (0-100) */
+  ocr_confidence: number | null
+}
+
+/**
  * Response wrapper for batch processing
  */
 export interface BatchResponse {

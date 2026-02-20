@@ -219,6 +219,47 @@ export function printImageDetectResult(
   }
 }
 
+export function printImageProcessResult(
+  outputPath: string,
+  metadata: {
+    entities_count: number;
+    detected_entities: DetectedEntityOutput[];
+    mapping: Record<string, string>;
+    ocr_confidence: number | null;
+  },
+  opts: OutputOptions
+): void {
+  if (opts.json) {
+    console.log(JSON.stringify({ output_file: outputPath, ...metadata }, null, 2));
+    return;
+  }
+
+  if (opts.quiet) {
+    console.log(outputPath);
+    return;
+  }
+
+  console.log(c.bold(`Saved: ${outputPath}`));
+  console.log();
+
+  if (metadata.ocr_confidence !== null) {
+    console.log(c.dim(`OCR confidence: ${metadata.ocr_confidence}%`));
+  }
+
+  if (metadata.entities_count === 0) {
+    console.log(c.dim('No entities detected.'));
+    return;
+  }
+
+  console.log(c.bold(`${metadata.entities_count} entities processed:`));
+  console.log();
+  for (const e of metadata.detected_entities) {
+    console.log(
+      `  ${c.cyan(e.type.padEnd(20))} ${c.yellow(`"${e.text}"`)}  ${c.dim(`score: ${(e.score * 100).toFixed(0)}%`)}`
+    );
+  }
+}
+
 export function printDiscoverResult(
   result: unknown,
   opts: OutputOptions
