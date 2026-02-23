@@ -4,6 +4,8 @@ The official Python SDK for Blindfold - The Privacy API for AI.
 
 Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending it to LLMs or third-party services.
 
+**Works offline with zero dependencies** - Detect and redact 20+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
+
 ## How to use it
 
 ### 1. Install SDK
@@ -11,21 +13,58 @@ Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending
 pip install blindfold-sdk
 ```
 
-### 2. Get Blindfold API key
+### 2. Start detecting PII (no API key needed)
+
+```python
+from blindfold import Blindfold
+
+client = Blindfold()
+
+# Detect PII locally - no API key, no network call
+result = client.detect("Email john@acme.com, SSN 123-45-6789")
+for entity in result.detected_entities:
+    print(f"{entity.type}: {entity.text} (score: {entity.score})")
+# Email Address: john@acme.com (score: 0.95)
+# Social Security Number: 123-45-6789 (score: 0.9)
+
+# Redact PII locally
+result = client.redact("Email john@acme.com, SSN 123-45-6789")
+print(result.text)
+# "Email [EMAIL_ADDRESS], SSN [SOCIAL_SECURITY_NUMBER]"
+```
+
+### 3. Upgrade to Blindfold API (optional)
+
+For names, addresses, organizations, and 60+ entity types, add your API key:
 
 1. Sign up to Blindfold [here](https://www.blindfold.dev/).
 2. Get your API key [here](https://app.blindfold.dev/api-keys).
 3. Set environment variable with your API key
 ```
 BLINDFOLD_API_KEY=sk-***
-```   
+```
+
+```python
+# With API key - auto-switches to NLP-powered API
+client = Blindfold(api_key="sk-...")
+
+# Now detects names, addresses, organizations, and more
+result = client.detect("John Smith lives at 123 Oak Street")
+```
 
 ### Initialization
 
 ```python
 from blindfold import Blindfold
 
+# Local mode (no API key) - regex-based detection
 client = Blindfold()
+
+# API mode (with API key) - NLP-powered detection
+client = Blindfold(api_key="sk-...")
+
+# Force local mode even with an API key (useful for latency-critical paths)
+client = Blindfold(api_key="sk-...", mode="local")
 ```
 
 ### Tokenize (Reversible)
@@ -170,24 +209,87 @@ async def main():
 asyncio.run(main())
 ```
 
+## Local PII Scanner
+
+The built-in regex scanner works offline with zero dependencies. Use it directly for fine-grained control:
+
+```python
+from blindfold.regex import PIIScanner, EntityType
+
+# Default: US locale
+scanner = PIIScanner()
+matches = scanner.detect("Call me at john@acme.com or 555-867-5309")
+
+for match in matches:
+    print(f"{match.entity_type}: {match.text} (score: {match.score})")
+
+# Redact PII
+redacted_text, matches = scanner.redact("SSN 123-45-6789, CC 4532015112830366")
+print(redacted_text)
+# "SSN [SOCIAL_SECURITY_NUMBER], CC [CREDIT_CARD_NUMBER]"
+```
+
+### Multi-locale support
+
+Enable detection for different regions:
+
+```python
+# US + EU entities
+scanner = PIIScanner(locales=["us", "eu"])
+matches = scanner.detect("SSN 123-45-6789, IBAN DE89370400440532013000")
+
+# UK entities
+scanner = PIIScanner(locales=["uk"])
+matches = scanner.detect("NI number: AB 12 34 56 A")
+
+# All locales
+scanner = PIIScanner(locales=["us", "eu", "uk"])
+```
+
+### Filter by entity type
+
+```python
+# Only detect emails and credit cards
+scanner = PIIScanner(entities=[EntityType.EMAIL, EntityType.CREDIT_CARD])
+```
+
+### Supported local entity types
+
+| Entity Type | Locale | Validation |
+|---|---|---|
+| Email Address | Universal | RFC 5322 pattern |
+| Credit Card Number | Universal | Luhn checksum |
+| Phone Number | Universal | Format + digit count |
+| IP Address (v4/v6) | Universal | Octet range |
+| URL | Universal | Pattern |
+| MAC Address | Universal | Pattern |
+| Date of Birth | Universal | Context-required |
+| CVV/CVC | Universal | Context-required |
+| Social Security Number | US | Format rules + context |
+| Driver's License | US | Context-required |
+| Passport Number | US | Context-required |
+| Tax ID / EIN | US | Prefix validation + context |
+| ZIP Code | US | Context-required |
+| IBAN | EU | ISO 7064 mod-97 checksum |
+| Postal Code | EU | DE/FR/NL patterns |
+| VAT ID | EU | Country prefix + format |
+| NI Number | UK | Format validation |
+| NHS Number | UK | Modulus-11 checksum |
+| UK Postcode | UK | Pattern |
+| UK Passport | UK | Context-required |
+
+> Need names, addresses, organizations, and 60+ entity types? [Add your API key](#3-upgrade-to-blindfold-api-optional) to unlock NLP-powered detection.
+
 ## Configuration
 
-### Entity Types
+### Entity Types (API mode)
 
-Common supported entities:
+With an API key, all local entity types are available plus:
 - `person`
-- `email address`
-- `phone number`
-- `credit card number`
-- `ip address`
 - `address`
-- `date of birth`
 - `organization`
-- `iban`
-- `social security number`
 - `medical condition`
-- `passport number`
-- `driver's license number`
+- And 50+ more entity types
 
 ### Error Handling
 
