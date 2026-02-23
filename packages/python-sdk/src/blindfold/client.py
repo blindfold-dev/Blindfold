@@ -37,29 +37,36 @@ class Blindfold:
     Blindfold client for tokenization and detokenization operations.
 
     This client supports both synchronous operations using httpx.Client.
+    When no ``api_key`` is provided, ``detect()`` and ``redact()`` run locally
+    using the built-in regex PII scanner.  Set ``mode="local"`` to force local
+    mode even when an API key is present.
     """
 
     def __init__(
         self,
-        api_key: str,
+        api_key: Optional[str] = None,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
         user_id: Optional[str] = None,
         max_retries: int = 2,
         retry_delay: float = 0.5,
         region: Optional[str] = None,
+        mode: Optional[str] = None,
     ) -> None:
         """
         Initialize Blindfold client.
 
         Args:
-            api_key: API key for authentication
+            api_key: Optional API key for authentication. When omitted,
+                detect() and redact() use the local regex scanner.
             base_url: Base URL for the API (default: https://api.blindfold.dev/api/public/v1)
             timeout: Request timeout in seconds (default: 30.0)
             user_id: Optional user ID to track who is making the request
             max_retries: Maximum number of retries on transient errors (default: 2, 0 to disable)
             retry_delay: Initial delay in seconds before first retry (default: 0.5)
             region: Optional region for data residency ("eu" or "us"). Overrides base_url if base_url is default.
+            mode: Optional mode override. Set to ``"local"`` to force local
+                regex detection even when an API key is present.
         """
         self.api_key = api_key
         if region and base_url == DEFAULT_BASE_URL:
@@ -74,13 +81,31 @@ class Blindfold:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.region = region
+        self.mode = mode
         self._client: Optional[httpx.Client] = None
+        self._scanner: Optional["PIIScanner"] = None
+
+    @property
+    def _use_local(self) -> bool:
+        """Whether to use the local regex scanner instead of the API."""
+        if self.mode == "local":
+            return True
+        return self.api_key is None
+
+    def _get_scanner(self) -> "PIIScanner":
+        """Lazy-init the local PII scanner."""
+        if self._scanner is None:
+            from .regex import PIIScanner
+            self._scanner = PIIScanner()
+        return self._scanner
 
     @property
     def client(self) -> httpx.Client:
         """Get or create httpx client"""
         if self._client is None:
-            headers = {"X-API-Key": self.api_key}
+            headers: Dict[str, str] = {}
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
             if self.user_id:
                 headers["X-Blindfold-User-Id"] = self.user_id
 
@@ -254,6 +279,9 @@ class Blindfold:
         Returns only the detected entities with their types, positions,
         and confidence scores. The original text is not transformed.
 
+        When no API key is set (or ``mode="local"``), detection runs locally
+        using the built-in regex scanner.
+
         Args:
             text: Text to analyze for PII
             entities: Optional list of entities to detect
@@ -269,6 +297,9 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
+        if self._use_local:
+            return self._detect_local(text, score_threshold)
+
         payload: Dict[str, Any] = {"text": text}
         if entities is not None:
             payload["entities"] = entities
@@ -287,6 +318,34 @@ class Blindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    def _detect_local(
+        self,
+        text: str,
+        score_threshold: Optional[float] = None,
+    ) -> DetectResponse:
+        """Run local regex-based PII detection."""
+        from .models import DetectedEntity
+
+        scanner = self._get_scanner()
+        matches = scanner.detect(text)
+
+        detected = []
+        for m in matches:
+            if score_threshold is not None and m.score < score_threshold:
+                continue
+            detected.append(DetectedEntity(
+                type=m.entity_type,
+                text=m.text,
+                start=m.start,
+                end=m.end,
+                score=m.score,
+            ))
+
+        return DetectResponse(
+            detected_entities=detected,
+            entities_count=len(detected),
+        )
 
     def detokenize(
         self,
@@ -336,6 +395,10 @@ class Blindfold:
 
         WARNING: Redaction is irreversible - original data cannot be restored!
 
+        When no API key is set (or ``mode="local"``), redaction runs locally
+        using the built-in regex scanner, replacing PII with ``[LABEL]``
+        placeholders.
+
         Args:
             text: Text to redact
             masking_char: Character(s) to use for masking (default: "*")
@@ -352,6 +415,9 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
+        if self._use_local:
+            return self._redact_local(text, score_threshold)
+
         payload: Dict[str, Any] = {"text": text, "masking_char": masking_char}
         if entities is not None:
             payload["entities"] = entities
@@ -370,6 +436,35 @@ class Blindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    def _redact_local(
+        self,
+        text: str,
+        score_threshold: Optional[float] = None,
+    ) -> RedactResponse:
+        """Run local regex-based PII redaction."""
+        from .models import DetectedEntity
+
+        scanner = self._get_scanner()
+        redacted_text, matches = scanner.redact(text)
+
+        detected = []
+        for m in matches:
+            if score_threshold is not None and m.score < score_threshold:
+                continue
+            detected.append(DetectedEntity(
+                type=m.entity_type,
+                text=m.text,
+                start=m.start,
+                end=m.end,
+                score=m.score,
+            ))
+
+        return RedactResponse(
+            text=redacted_text,
+            detected_entities=detected,
+            entities_count=len(detected),
+        )
 
     def mask(
         self,
@@ -754,29 +849,35 @@ class AsyncBlindfold:
     Async Blindfold client for tokenization and detokenization operations.
 
     This client supports asynchronous operations using httpx.AsyncClient.
+    When no ``api_key`` is provided, ``detect()`` and ``redact()`` run locally
+    using the built-in regex PII scanner.
     """
 
     def __init__(
         self,
-        api_key: str,
+        api_key: Optional[str] = None,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
         user_id: Optional[str] = None,
         max_retries: int = 2,
         retry_delay: float = 0.5,
         region: Optional[str] = None,
+        mode: Optional[str] = None,
     ) -> None:
         """
         Initialize async Blindfold client.
 
         Args:
-            api_key: API key for authentication
+            api_key: Optional API key for authentication. When omitted,
+                detect() and redact() use the local regex scanner.
             base_url: Base URL for the API (default: https://api.blindfold.dev/api/public/v1)
             timeout: Request timeout in seconds (default: 30.0)
             user_id: Optional user ID to track who is making the request
             max_retries: Maximum number of retries on transient errors (default: 2, 0 to disable)
             retry_delay: Initial delay in seconds before first retry (default: 0.5)
             region: Optional region for data residency ("eu" or "us"). Overrides base_url if base_url is default.
+            mode: Optional mode override. Set to ``"local"`` to force local
+                regex detection even when an API key is present.
         """
         self.api_key = api_key
         if region and base_url == DEFAULT_BASE_URL:
@@ -791,13 +892,31 @@ class AsyncBlindfold:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.region = region
+        self.mode = mode
         self._client: Optional[httpx.AsyncClient] = None
+        self._scanner: Optional["PIIScanner"] = None
+
+    @property
+    def _use_local(self) -> bool:
+        """Whether to use the local regex scanner instead of the API."""
+        if self.mode == "local":
+            return True
+        return self.api_key is None
+
+    def _get_scanner(self) -> "PIIScanner":
+        """Lazy-init the local PII scanner."""
+        if self._scanner is None:
+            from .regex import PIIScanner
+            self._scanner = PIIScanner()
+        return self._scanner
 
     @property
     def client(self) -> httpx.AsyncClient:
         """Get or create async httpx client"""
         if self._client is None:
-            headers = {"X-API-Key": self.api_key}
+            headers: Dict[str, str] = {}
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
             if self.user_id:
                 headers["X-Blindfold-User-Id"] = self.user_id
 
@@ -971,6 +1090,9 @@ class AsyncBlindfold:
         Returns only the detected entities with their types, positions,
         and confidence scores. The original text is not transformed.
 
+        When no API key is set (or ``mode="local"``), detection runs locally
+        using the built-in regex scanner.
+
         Args:
             text: Text to analyze for PII
             entities: Optional list of entities to detect
@@ -986,6 +1108,9 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
+        if self._use_local:
+            return self._detect_local(text, score_threshold)
+
         payload: Dict[str, Any] = {"text": text}
         if entities is not None:
             payload["entities"] = entities
@@ -1004,6 +1129,34 @@ class AsyncBlindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    def _detect_local(
+        self,
+        text: str,
+        score_threshold: Optional[float] = None,
+    ) -> DetectResponse:
+        """Run local regex-based PII detection."""
+        from .models import DetectedEntity
+
+        scanner = self._get_scanner()
+        matches = scanner.detect(text)
+
+        detected = []
+        for m in matches:
+            if score_threshold is not None and m.score < score_threshold:
+                continue
+            detected.append(DetectedEntity(
+                type=m.entity_type,
+                text=m.text,
+                start=m.start,
+                end=m.end,
+                score=m.score,
+            ))
+
+        return DetectResponse(
+            detected_entities=detected,
+            entities_count=len(detected),
+        )
 
     async def detokenize(
         self,
@@ -1053,6 +1206,10 @@ class AsyncBlindfold:
 
         WARNING: Redaction is irreversible - original data cannot be restored!
 
+        When no API key is set (or ``mode="local"``), redaction runs locally
+        using the built-in regex scanner, replacing PII with ``[LABEL]``
+        placeholders.
+
         Args:
             text: Text to redact
             masking_char: Character(s) to use for masking (default: "*")
@@ -1069,6 +1226,9 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
+        if self._use_local:
+            return self._redact_local(text, score_threshold)
+
         payload: Dict[str, Any] = {"text": text, "masking_char": masking_char}
         if entities is not None:
             payload["entities"] = entities
@@ -1087,6 +1247,35 @@ class AsyncBlindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    def _redact_local(
+        self,
+        text: str,
+        score_threshold: Optional[float] = None,
+    ) -> RedactResponse:
+        """Run local regex-based PII redaction."""
+        from .models import DetectedEntity
+
+        scanner = self._get_scanner()
+        redacted_text, matches = scanner.redact(text)
+
+        detected = []
+        for m in matches:
+            if score_threshold is not None and m.score < score_threshold:
+                continue
+            detected.append(DetectedEntity(
+                type=m.entity_type,
+                text=m.text,
+                start=m.start,
+                end=m.end,
+                score=m.score,
+            ))
+
+        return RedactResponse(
+            text=redacted_text,
+            detected_entities=detected,
+            entities_count=len(detected),
+        )
 
     async def mask(
         self,

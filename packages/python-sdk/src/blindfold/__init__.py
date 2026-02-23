@@ -8,6 +8,7 @@ from .errors import (
     NetworkError,
 )
 from .models import BatchResponse, DetectedEntity, DetectResponse, DetokenizeResponse, TokenizeResponse
+from .regex import EntityType, PIIScanner
 
 __version__ = "1.3.0"
 
@@ -23,4 +24,6 @@ __all__ = [
     "DetokenizeResponse",
     "DetectedEntity",
     "BatchResponse",
+    "PIIScanner",
+    "EntityType",
 ]
