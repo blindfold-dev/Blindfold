@@ -2,8 +2,8 @@
  * Configuration for Blindfold client
  */
 export interface BlindfoldConfig {
-  /** API key for authentication */
-  apiKey: string
+  /** API key for authentication. When omitted, detect() and redact() use the local regex scanner. */
+  apiKey?: string
   /** Base URL for the API (default: https://api.blindfold.dev/api/public/v1) */
   baseUrl?: string
   /** Region for data residency ("eu" or "us"). Overrides baseUrl if baseUrl is not set. */
@@ -14,6 +14,8 @@ export interface BlindfoldConfig {
   maxRetries?: number
   /** Initial delay in seconds before first retry (default: 0.5) */
   retryDelay?: number
+  /** Set to "local" to force local regex detection even when an API key is present. */
+  mode?: 'local' | 'api'
 }
 
 /**

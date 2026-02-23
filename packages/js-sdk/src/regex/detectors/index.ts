@@ -1,0 +1,12 @@
+// Auto-import all detector modules so they register with the registry.
+import './email'
+import './credit-card'
+import './phone'
+import './ip-address'
+import './url'
+import './mac-address'
+import './date-of-birth'
+import './cvv'
+import './us/index'
+import './eu/index'
+import './uk/index'
