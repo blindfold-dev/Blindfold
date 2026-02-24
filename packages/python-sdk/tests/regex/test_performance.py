@@ -7,9 +7,15 @@ import pytest
 from blindfold.regex import PIIScanner
 
 
+ALL_LOCALES = [
+    "us", "eu", "uk", "de", "fr", "es", "it", "pt", "pl", "cz",
+    "ru", "nl", "ro", "sk", "dk", "se", "no", "br",
+]
+
+
 @pytest.fixture
 def scanner():
-    return PIIScanner(locales=["us", "eu", "uk"])
+    return PIIScanner(locales=ALL_LOCALES)
 
 
 class TestPerformance:

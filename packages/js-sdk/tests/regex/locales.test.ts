@@ -35,4 +35,40 @@ describe('Locale Filtering', () => {
     const ssn = scanner.detect('SSN 123-45-6789').filter((m) => m.entityType === 'Social Security Number')
     expect(ssn.length).toBe(0)
   })
+
+  test('DE locale detects German Tax ID', () => {
+    const scanner = new PIIScanner({ locales: ['de'] })
+    const matches = scanner.detect('Steuer-ID: 65929970489')
+    expect(matches.filter((m) => m.entityType === 'German Tax ID').length).toBe(1)
+  })
+
+  test('DE locale does not detect SSN', () => {
+    const scanner = new PIIScanner({ locales: ['de'] })
+    const ssn = scanner.detect('SSN 123-45-6789').filter((m) => m.entityType === 'Social Security Number')
+    expect(ssn.length).toBe(0)
+  })
+
+  test('ES locale detects Spanish DNI', () => {
+    const scanner = new PIIScanner({ locales: ['es'] })
+    const matches = scanner.detect('DNI: 12345678Z')
+    expect(matches.filter((m) => m.entityType === 'Spanish DNI').length).toBe(1)
+  })
+
+  test('BR locale detects Brazilian CPF', () => {
+    const scanner = new PIIScanner({ locales: ['br'] })
+    const matches = scanner.detect('CPF: 529.982.247-25')
+    expect(matches.filter((m) => m.entityType === 'Brazilian CPF').length).toBe(1)
+  })
+
+  test('DE locale does not detect French National ID', () => {
+    const scanner = new PIIScanner({ locales: ['de'] })
+    const fr = scanner.detect('NIR: 185057800608491').filter((m) => m.entityType === 'French National ID')
+    expect(fr.length).toBe(0)
+  })
+
+  test('FR locale does not detect German Tax ID', () => {
+    const scanner = new PIIScanner({ locales: ['fr'] })
+    const de = scanner.detect('Steuer-ID: 65929970489').filter((m) => m.entityType === 'German Tax ID')
+    expect(de.length).toBe(0)
+  })
 })

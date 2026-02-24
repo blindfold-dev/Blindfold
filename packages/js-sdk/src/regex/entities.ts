@@ -32,6 +32,56 @@ export enum EntityType {
   NHS_NUMBER = 'NHS Number',
   UK_POSTCODE = 'UK Postcode',
   UK_PASSPORT = 'UK Passport',
+
+  // Germany (DE)
+  DE_PERSONAL_ID = 'German Personal ID',
+  DE_TAX_ID = 'German Tax ID',
+
+  // France (FR)
+  FR_NATIONAL_ID = 'French National ID',
+
+  // Spain (ES)
+  ES_DNI = 'Spanish DNI',
+  ES_NIE = 'Spanish NIE',
+
+  // Italy (IT)
+  IT_CODICE_FISCALE = 'Italian Codice Fiscale',
+
+  // Portugal (PT)
+  PT_NIF = 'Portuguese NIF',
+
+  // Poland (PL)
+  PL_PESEL = 'Polish PESEL',
+  PL_NIP = 'Polish NIP',
+
+  // Czech Republic (CZ)
+  CZ_BIRTH_NUMBER = 'Czech Birth Number',
+
+  // Russia (RU)
+  RU_INN = 'Russian INN',
+  RU_SNILS = 'Russian SNILS',
+
+  // Netherlands (NL)
+  NL_BSN = 'Dutch BSN',
+
+  // Romania (RO)
+  RO_CNP = 'Romanian CNP',
+
+  // Slovakia (SK)
+  SK_BIRTH_NUMBER = 'Slovak Birth Number',
+
+  // Denmark (DK)
+  DK_CPR = 'Danish CPR',
+
+  // Sweden (SE)
+  SE_PERSONNUMMER = 'Swedish Personnummer',
+
+  // Norway (NO)
+  NO_BIRTH_NUMBER = 'Norwegian Birth Number',
+
+  // Brazil (BR)
+  BR_CPF = 'Brazilian CPF',
+  BR_CNPJ = 'Brazilian CNPJ',
 }
 
 /** A single PII match found by a detector. */
@@ -65,4 +115,24 @@ export const REDACTION_LABELS: Record<string, string> = {
   [EntityType.NHS_NUMBER]: 'NHS_NUMBER',
   [EntityType.UK_POSTCODE]: 'UK_POSTCODE',
   [EntityType.UK_PASSPORT]: 'UK_PASSPORT',
+  [EntityType.DE_PERSONAL_ID]: 'DE_PERSONAL_ID',
+  [EntityType.DE_TAX_ID]: 'DE_TAX_ID',
+  [EntityType.FR_NATIONAL_ID]: 'FR_NATIONAL_ID',
+  [EntityType.ES_DNI]: 'ES_DNI',
+  [EntityType.ES_NIE]: 'ES_NIE',
+  [EntityType.IT_CODICE_FISCALE]: 'IT_CODICE_FISCALE',
+  [EntityType.PT_NIF]: 'PT_NIF',
+  [EntityType.PL_PESEL]: 'PL_PESEL',
+  [EntityType.PL_NIP]: 'PL_NIP',
+  [EntityType.CZ_BIRTH_NUMBER]: 'CZ_BIRTH_NUMBER',
+  [EntityType.RU_INN]: 'RU_INN',
+  [EntityType.RU_SNILS]: 'RU_SNILS',
+  [EntityType.NL_BSN]: 'NL_BSN',
+  [EntityType.RO_CNP]: 'RO_CNP',
+  [EntityType.SK_BIRTH_NUMBER]: 'SK_BIRTH_NUMBER',
+  [EntityType.DK_CPR]: 'DK_CPR',
+  [EntityType.SE_PERSONNUMMER]: 'SE_PERSONNUMMER',
+  [EntityType.NO_BIRTH_NUMBER]: 'NO_BIRTH_NUMBER',
+  [EntityType.BR_CPF]: 'BR_CPF',
+  [EntityType.BR_CNPJ]: 'BR_CNPJ',
 }

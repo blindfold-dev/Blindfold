@@ -1,6 +1,10 @@
 import { PIIScanner } from '../../src/regex'
 
-const scanner = new PIIScanner({ locales: ['us', 'eu', 'uk'] })
+const ALL_LOCALES = [
+  'us', 'eu', 'uk', 'de', 'fr', 'es', 'it', 'pt', 'pl', 'cz',
+  'ru', 'nl', 'ro', 'sk', 'dk', 'se', 'no', 'br',
+]
+const scanner = new PIIScanner({ locales: ALL_LOCALES })
 
 describe('Performance', () => {
   test('typical text should complete in under 50ms', () => {
