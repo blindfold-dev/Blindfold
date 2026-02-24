@@ -2,6 +2,7 @@ import type {
   BlindfoldConfig,
   DetectConfig,
   DetectResponse,
+  DetectedEntity,
   TokenizeConfig,
   TokenizeResponse,
   DetokenizeResponse,
@@ -19,6 +20,7 @@ import type {
   APIErrorResponse,
 } from './types'
 import { AuthenticationError, APIError, NetworkError } from './errors'
+import type { PIIScanner as PIIScannerType } from './regex'
 
 const DEFAULT_BASE_URL = 'https://api.blindfold.dev/api/public/v1'
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504])
@@ -33,21 +35,28 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Blindfold client for tokenization and detokenization
+ * Blindfold client for tokenization and detokenization.
+ *
+ * When no `apiKey` is provided, `detect()` and `redact()` run locally
+ * using the built-in regex PII scanner.  Set `mode: "local"` to force
+ * local mode even when an API key is present.
  */
 export class Blindfold {
-  private apiKey: string
+  private apiKey?: string
   private baseUrl: string
   private userId?: string
   private maxRetries: number
   private retryDelay: number
+  private mode?: string
+  private _scanner?: PIIScannerType
 
   /**
    * Create a new Blindfold client
-   * @param config - Configuration options
+   * @param config - Configuration options. Can be omitted entirely for local-only mode.
    */
-  constructor(config: BlindfoldConfig) {
+  constructor(config: BlindfoldConfig = {}) {
     this.apiKey = config.apiKey
+    this.mode = config.mode
     if (config.region && !config.baseUrl) {
       const regionUrl = REGION_URLS[config.region]
       if (!regionUrl) {
@@ -60,6 +69,21 @@ export class Blindfold {
     this.userId = config.userId
     this.maxRetries = config.maxRetries ?? 2
     this.retryDelay = config.retryDelay ?? 0.5
+  }
+
+  private get useLocal(): boolean {
+    if (this.mode === 'local') return true
+    return !this.apiKey
+  }
+
+  private getScanner(): PIIScannerType {
+    if (!this._scanner) {
+      // Lazy import to avoid loading regex module when using API mode
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PIIScanner } = require('./regex') as typeof import('./regex')
+      this._scanner = new PIIScanner()
+    }
+    return this._scanner
   }
 
   private retryWait(attempt: number, error?: APIError): number {
@@ -86,7 +110,10 @@ export class Blindfold {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-API-Key': this.apiKey,
+    }
+
+    if (this.apiKey) {
+      headers['X-API-Key'] = this.apiKey
     }
 
     if (this.userId) {
@@ -190,15 +217,43 @@ export class Blindfold {
    * Returns only the detected entities with their types, positions,
    * and confidence scores. The original text is not transformed.
    *
+   * When no API key is set (or `mode: "local"`), detection runs locally
+   * using the built-in regex scanner.
+   *
    * @param text - Text to analyze for PII
    * @param config - Optional configuration (entities, score_threshold, policy)
    * @returns Promise with detected entities
    */
   async detect(text: string, config?: DetectConfig): Promise<DetectResponse> {
+    if (this.useLocal) {
+      return this.detectLocal(text, config?.score_threshold)
+    }
     return this.request<DetectResponse>('/detect', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private detectLocal(text: string, scoreThreshold?: number): DetectResponse {
+    const scanner = this.getScanner()
+    const matches = scanner.detect(text)
+
+    const detected: DetectedEntity[] = []
+    for (const m of matches) {
+      if (scoreThreshold != null && m.score < scoreThreshold) continue
+      detected.push({
+        type: m.entityType,
+        text: m.text,
+        start: m.start,
+        end: m.end,
+        score: m.score,
+      })
+    }
+
+    return {
+      detected_entities: detected,
+      entities_count: detected.length,
+    }
   }
 
   /**
@@ -240,15 +295,44 @@ export class Blindfold {
    *
    * WARNING: Redaction is irreversible - original data cannot be restored!
    *
+   * When no API key is set (or `mode: "local"`), redaction runs locally
+   * using the built-in regex scanner, replacing PII with `[LABEL]` placeholders.
+   *
    * @param text - Text to redact
    * @param config - Optional configuration (masking_char, entities)
    * @returns Promise with redacted text and detected entities
    */
   async redact(text: string, config?: RedactConfig): Promise<RedactResponse> {
+    if (this.useLocal) {
+      return this.redactLocal(text, config?.score_threshold)
+    }
     return this.request<RedactResponse>('/redact', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private redactLocal(text: string, scoreThreshold?: number): RedactResponse {
+    const scanner = this.getScanner()
+    const [redactedText, matches] = scanner.redact(text)
+
+    const detected: DetectedEntity[] = []
+    for (const m of matches) {
+      if (scoreThreshold != null && m.score < scoreThreshold) continue
+      detected.push({
+        type: m.entityType,
+        text: m.text,
+        start: m.start,
+        end: m.end,
+        score: m.score,
+      })
+    }
+
+    return {
+      text: redactedText,
+      detected_entities: detected,
+      entities_count: detected.length,
+    }
   }
 
   /**

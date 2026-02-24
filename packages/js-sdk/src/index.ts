@@ -11,3 +11,5 @@ export type {
   APIErrorResponse,
 } from './types'
 export { BlindfoldError, AuthenticationError, APIError, NetworkError } from './errors'
+export { PIIScanner, EntityType } from './regex'
+export type { PIIMatch } from './regex'

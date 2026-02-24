@@ -4,11 +4,11 @@ The official JavaScript/TypeScript SDK for Blindfold - The Privacy API for AI.
 
 Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending it to LLMs or third-party services.
 
+**Works offline with zero dependencies** - Detect and redact 20+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
+
 ## How to use it
 
 ### 1. Install SDK
-
-Javascript/ Typescript
 
 ```bash
 npm install @blindfold/sdk
@@ -18,32 +18,59 @@ yarn add @blindfold/sdk
 pnpm add @blindfold/sdk
 ```
 
-Python SDK
+### 2. Start detecting PII (no API key needed)
 
-```bash
-pip install blindfold-sdk
+```typescript
+import { Blindfold } from '@blindfold/sdk'
+
+const client = new Blindfold()
+
+// Detect PII locally - no API key, no network call
+const result = await client.detect("Email john@acme.com, SSN 123-45-6789")
+for (const entity of result.detected_entities) {
+  console.log(`${entity.type}: ${entity.text} (score: ${entity.score})`)
+}
+// Email Address: john@acme.com (score: 0.95)
+// Social Security Number: 123-45-6789 (score: 0.9)
+
+// Redact PII locally
+const redacted = await client.redact("Email john@acme.com, SSN 123-45-6789")
+console.log(redacted.text)
+// "Email [EMAIL_ADDRESS], SSN [SOCIAL_SECURITY_NUMBER]"
 ```
 
-### 2. Get Blindfold API key
+### 3. Upgrade to Blindfold API (optional)
 
-1. Sign up to Blindfold here.
+For names, addresses, organizations, and 60+ entity types, add your API key:
+
 1. Sign up to Blindfold [here](https://www.blindfold.dev/).
-3. Get your API key [here](https://app.blindfold.dev/api-keys).
+2. Get your API key [here](https://app.blindfold.dev/api-keys).
 3. Set environment variable with your API key
 ```
 BLINDFOLD_API_KEY=sk-***
-```     
+```
+
+```typescript
+// With API key - auto-switches to NLP-powered API
+const client = new Blindfold({ apiKey: 'sk-...' })
+
+// Now detects names, addresses, organizations, and more
+const result = await client.detect("John Smith lives at 123 Oak Street")
+```
 
 ### Initialization
 
 ```typescript
-import { Blindfold } from '@blindfold/sdk';
+import { Blindfold } from '@blindfold/sdk'
 
-const client = new Blindfold({
-  apiKey: 'your-api-key-here',
-  // Optional: Track specific end-user for audit logs
-  userId: 'user_123' 
-});
+// Local mode (no API key) - regex-based detection
+const client = new Blindfold()
+
+// API mode (with API key) - NLP-powered detection
+const client = new Blindfold({ apiKey: 'sk-...' })
+
+// Force local mode even with an API key (useful for latency-critical paths)
+const client = new Blindfold({ apiKey: 'sk-...', mode: 'local' })
 ```
 
 ### Tokenize (Reversible)
@@ -183,24 +210,88 @@ result.results.forEach(item => console.log(item.text));
 
 All methods have batch variants: `tokenizeBatch`, `detectBatch`, `redactBatch`, `maskBatch`, `synthesizeBatch`, `hashBatch`, `encryptBatch`.
 
+## Local PII Scanner
+
+The built-in regex scanner works offline with zero dependencies. Use it directly for fine-grained control:
+
+```typescript
+import { PIIScanner, EntityType } from '@blindfold/sdk/regex'
+
+// Default: US locale
+const scanner = new PIIScanner()
+const matches = scanner.detect("Call me at john@acme.com or 555-867-5309")
+
+for (const match of matches) {
+  console.log(`${match.entityType}: ${match.text} (score: ${match.score})`)
+}
+
+// Redact PII
+const { text, matches: redacted } = scanner.redact("SSN 123-45-6789, CC 4532015112830366")
+console.log(text)
+// "SSN [SOCIAL_SECURITY_NUMBER], CC [CREDIT_CARD_NUMBER]"
+```
+
+### Multi-locale support
+
+Enable detection for different regions:
+
+```typescript
+// US + EU entities
+const scanner = new PIIScanner({ locales: ['us', 'eu'] })
+const matches = scanner.detect("SSN 123-45-6789, IBAN DE89370400440532013000")
+
+// UK entities
+const scanner = new PIIScanner({ locales: ['uk'] })
+const matches = scanner.detect("NI number: AB 12 34 56 A")
+
+// All locales
+const scanner = new PIIScanner({ locales: ['us', 'eu', 'uk'] })
+```
+
+### Filter by entity type
+
+```typescript
+// Only detect emails and credit cards
+const scanner = new PIIScanner({ entities: [EntityType.EMAIL, EntityType.CREDIT_CARD] })
+```
+
+### Supported local entity types
+
+| Entity Type | Locale | Validation |
+|---|---|---|
+| Email Address | Universal | RFC 5322 pattern |
+| Credit Card Number | Universal | Luhn checksum |
+| Phone Number | Universal | Format + digit count |
+| IP Address (v4/v6) | Universal | Octet range |
+| URL | Universal | Pattern |
+| MAC Address | Universal | Pattern |
+| Date of Birth | Universal | Context-required |
+| CVV/CVC | Universal | Context-required |
+| Social Security Number | US | Format rules + context |
+| Driver's License | US | Context-required |
+| Passport Number | US | Context-required |
+| Tax ID / EIN | US | Prefix validation + context |
+| ZIP Code | US | Context-required |
+| IBAN | EU | ISO 7064 mod-97 checksum |
+| Postal Code | EU | DE/FR/NL patterns |
+| VAT ID | EU | Country prefix + format |
+| NI Number | UK | Format validation |
+| NHS Number | UK | Modulus-11 checksum |
+| UK Postcode | UK | Pattern |
+| UK Passport | UK | Context-required |
+
+> Need names, addresses, organizations, and 60+ entity types? [Add your API key](#3-upgrade-to-blindfold-api-optional) to unlock NLP-powered detection.
+
 ## Configuration
 
-### Entity Types
+### Entity Types (API mode)
 
-Common supported entities:
+With an API key, all local entity types are available plus:
 - `person`
-- `email address`
-- `phone number`
-- `credit card number`
-- `ip address`
 - `address`
-- `date of birth`
 - `organization`
-- `iban`
-- `social security number`
 - `medical condition`
-- `passport number`
-- `driver's license number`
+- And 50+ more entity types
 
 ### Error Handling
 
