@@ -32,7 +32,18 @@ Demonstrates client-side operations without needing an API key:
 python examples/offline_detokenization.py
 ```
 
-### 2. Basic Tokenization (`basic_tokenization.py`)
+### 2. Offline All Methods (`offline_all_methods.py`)
+Demonstrates every method running locally without an API key:
+- Detect, redact, tokenize, detokenize
+- Mask, hash, synthesize, encrypt
+- Zero network calls
+
+**Run:**
+```bash
+python examples/offline_all_methods.py
+```
+
+### 3. Basic Tokenization (`basic_tokenization.py`)
 Demonstrates the fundamental tokenize → process → detokenize flow:
 - Tokenizing sensitive data
 - Sending to an LLM (simulated)
@@ -44,7 +55,7 @@ export BLINDFOLD_API_KEY=your-api-key
 python examples/basic_tokenization.py
 ```
 
-### 3. Multiple Methods (`multiple_methods.py`)
+### 4. Multiple Methods (`multiple_methods.py`)
 Shows all anonymization methods available:
 - Tokenize (reversible)
 - Mask (partial visibility)
@@ -58,7 +69,7 @@ export BLINDFOLD_API_KEY=your-api-key
 python examples/multiple_methods.py
 ```
 
-### 4. OpenAI Integration (`with_openai.py`)
+### 5. OpenAI Integration (`with_openai.py`)
 Real-world example with OpenAI:
 - Protecting PII before sending to OpenAI
 - Using policy-based detection (GDPR)
@@ -73,7 +84,7 @@ export OPENAI_API_KEY=your-openai-key
 python examples/with_openai.py
 ```
 
-### 5. Async Usage (`async_example.py`)
+### 6. Async Usage (`async_example.py`)
 Demonstrates async/await patterns:
 - Using AsyncBlindfold client
 - Context manager pattern
