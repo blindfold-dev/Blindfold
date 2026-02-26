@@ -1,5 +1,5 @@
 # What is Blindfold
-Blindfold is an enterprise AI Gateway with automatic PII detection and anonymization. Available in **EU** and **US** regions for data residency compliance.
+Blindfold is an enterprise AI Gateway with automatic PII detection and anonymization. Available in **EU** and **US** regions for data residency compliance. **Open source** under the [MIT License](LICENSE).
 
 **Works offline with zero dependencies** - Detect and redact 80+ PII entity types locally. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
 
