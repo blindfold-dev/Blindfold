@@ -56,6 +56,9 @@ export enum EntityType {
 
   // Czech Republic (CZ)
   CZ_BIRTH_NUMBER = 'Czech Birth Number',
+  CZ_ICO = 'Czech ICO',
+  CZ_DIC = 'Czech DIC',
+  CZ_BANK_ACCOUNT = 'Czech Bank Account',
 
   // Russia (RU)
   RU_INN = 'Russian INN',
@@ -125,6 +128,9 @@ export const REDACTION_LABELS: Record<string, string> = {
   [EntityType.PL_PESEL]: 'PL_PESEL',
   [EntityType.PL_NIP]: 'PL_NIP',
   [EntityType.CZ_BIRTH_NUMBER]: 'CZ_BIRTH_NUMBER',
+  [EntityType.CZ_ICO]: 'CZ_ICO',
+  [EntityType.CZ_DIC]: 'CZ_DIC',
+  [EntityType.CZ_BANK_ACCOUNT]: 'CZ_BANK_ACCOUNT',
   [EntityType.RU_INN]: 'RU_INN',
   [EntityType.RU_SNILS]: 'RU_SNILS',
   [EntityType.NL_BSN]: 'NL_BSN',

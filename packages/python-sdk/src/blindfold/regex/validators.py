@@ -208,6 +208,80 @@ def cz_birth_number_valid(number: str) -> bool:
     return True
 
 
+def cz_ico_checksum(number: str) -> bool:
+    """Validate Czech ICO (Company ID) using mod-11 weighted checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 8:
+        return False
+    weights = [8, 7, 6, 5, 4, 3, 2]
+    total = sum(d * w for d, w in zip(digits[:7], weights))
+    remainder = total % 11
+    if remainder == 0:
+        check = 1
+    elif remainder == 1:
+        check = 0
+    else:
+        check = 11 - remainder
+    return digits[7] == check
+
+
+def cz_dic_valid(number: str) -> bool:
+    """Validate Czech DIC (Tax/VAT ID): CZ prefix + ICO or birth number checksum."""
+    cleaned = number.strip()
+    if cleaned.upper().startswith("CZ"):
+        cleaned = cleaned[2:]
+    if not cleaned.isdigit():
+        return False
+    if len(cleaned) == 8:
+        return cz_ico_checksum(cleaned)
+    if len(cleaned) == 10:
+        return int(cleaned) % 11 == 0
+    if len(cleaned) == 9:
+        month = int(cleaned[2:4])
+        base_month = month % 50
+        if base_month > 20:
+            base_month -= 20
+        return 1 <= base_month <= 12
+    return False
+
+
+def cz_bank_account_valid(number: str) -> bool:
+    """Validate Czech bank account number using mod-11 weighted checksum."""
+    parts = number.split("/")
+    if len(parts) != 2:
+        return False
+    bank_code = parts[1]
+    if not bank_code.isdigit() or len(bank_code) != 4:
+        return False
+    account_part = parts[0]
+    prefix = ""
+    account = account_part
+    if "-" in account_part:
+        split = account_part.split("-")
+        if len(split) != 2:
+            return False
+        prefix = split[0]
+        account = split[1]
+    if prefix and (not prefix.isdigit() or len(prefix) > 6):
+        return False
+    if not account.isdigit() or len(account) < 2 or len(account) > 10:
+        return False
+    weights = [6, 3, 7, 9, 10, 5, 8, 4, 2, 1]
+    # Validate account number
+    acc_digits = [int(c) for c in account.zfill(10)]
+    total = sum(d * w for d, w in zip(acc_digits, weights))
+    if total % 11 != 0:
+        return False
+    # Validate prefix if present
+    if prefix:
+        pref_digits = [int(c) for c in prefix.zfill(6)]
+        pref_weights = weights[4:]  # [10, 5, 8, 4, 2, 1]
+        pref_total = sum(d * w for d, w in zip(pref_digits, pref_weights))
+        if pref_total % 11 != 0:
+            return False
+    return True
+
+
 def sk_birth_number_valid(number: str) -> bool:
     """Validate Slovak Birth Number (same logic as Czech)."""
     return cz_birth_number_valid(number)

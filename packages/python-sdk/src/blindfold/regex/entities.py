@@ -62,6 +62,9 @@ class EntityType(str, Enum):
 
     # Czech Republic (CZ)
     CZ_BIRTH_NUMBER = "Czech Birth Number"
+    CZ_ICO = "Czech ICO"
+    CZ_DIC = "Czech DIC"
+    CZ_BANK_ACCOUNT = "Czech Bank Account"
 
     # Russia (RU)
     RU_INN = "Russian INN"
@@ -133,6 +136,9 @@ REDACTION_LABELS: Dict[str, str] = {
     EntityType.PL_PESEL.value: "PL_PESEL",
     EntityType.PL_NIP.value: "PL_NIP",
     EntityType.CZ_BIRTH_NUMBER.value: "CZ_BIRTH_NUMBER",
+    EntityType.CZ_ICO.value: "CZ_ICO",
+    EntityType.CZ_DIC.value: "CZ_DIC",
+    EntityType.CZ_BANK_ACCOUNT.value: "CZ_BANK_ACCOUNT",
     EntityType.RU_INN.value: "RU_INN",
     EntityType.RU_SNILS.value: "RU_SNILS",
     EntityType.NL_BSN.value: "NL_BSN",

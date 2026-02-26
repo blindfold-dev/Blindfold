@@ -319,6 +319,86 @@ export function czBirthNumberValid(number: string): boolean {
   return true
 }
 
+/** Validate Czech ICO (Company ID) using mod-11 weighted checksum. */
+export function czIcoChecksum(number: string): boolean {
+  const digits: number[] = []
+  for (const c of number) {
+    if (c >= '0' && c <= '9') digits.push(parseInt(c, 10))
+  }
+  if (digits.length !== 8) return false
+  const weights = [8, 7, 6, 5, 4, 3, 2]
+  let total = 0
+  for (let i = 0; i < 7; i++) {
+    total += digits[i] * weights[i]
+  }
+  const remainder = total % 11
+  let check: number
+  if (remainder === 0) check = 1
+  else if (remainder === 1) check = 0
+  else check = 11 - remainder
+  return digits[7] === check
+}
+
+/** Validate Czech DIC (Tax/VAT ID): CZ prefix + ICO or birth number checksum. */
+export function czDicValid(number: string): boolean {
+  let cleaned = number.trim()
+  if (cleaned.toUpperCase().startsWith('CZ')) {
+    cleaned = cleaned.slice(2)
+  }
+  if (!/^\d+$/.test(cleaned)) return false
+  if (cleaned.length === 8) {
+    return czIcoChecksum(cleaned)
+  }
+  if (cleaned.length === 10) {
+    let remainder = 0
+    for (const c of cleaned) {
+      remainder = (remainder * 10 + parseInt(c, 10)) % 11
+    }
+    return remainder === 0
+  }
+  if (cleaned.length === 9) {
+    const month = parseInt(cleaned.slice(2, 4), 10)
+    let baseMonth = month % 50
+    if (baseMonth > 20) baseMonth -= 20
+    return baseMonth >= 1 && baseMonth <= 12
+  }
+  return false
+}
+
+/** Validate Czech bank account number using mod-11 weighted checksum. */
+export function czBankAccountValid(number: string): boolean {
+  const parts = number.split('/')
+  if (parts.length !== 2) return false
+  const bankCode = parts[1]
+  if (!/^\d{4}$/.test(bankCode)) return false
+  const accountPart = parts[0]
+  let prefix = ''
+  let account = accountPart
+  if (accountPart.includes('-')) {
+    const split = accountPart.split('-')
+    if (split.length !== 2) return false
+    prefix = split[0]
+    account = split[1]
+  }
+  if (!/^\d{1,6}$/.test(prefix) && prefix !== '') return false
+  if (!/^\d{2,10}$/.test(account)) return false
+  const weights = [6, 3, 7, 9, 10, 5, 8, 4, 2, 1]
+  // Validate account number
+  const accDigits = account.padStart(10, '0').split('').map(Number)
+  let total = 0
+  for (let i = 0; i < 10; i++) total += accDigits[i] * weights[i]
+  if (total % 11 !== 0) return false
+  // Validate prefix if present
+  if (prefix !== '') {
+    const prefDigits = prefix.padStart(6, '0').split('').map(Number)
+    const prefWeights = weights.slice(4) // [10, 5, 8, 4, 2, 1]
+    let prefTotal = 0
+    for (let i = 0; i < 6; i++) prefTotal += prefDigits[i] * prefWeights[i]
+    if (prefTotal % 11 !== 0) return false
+  }
+  return true
+}
+
 /** Validate Slovak Birth Number (same logic as Czech). */
 export function skBirthNumberValid(number: string): boolean {
   return czBirthNumberValid(number)

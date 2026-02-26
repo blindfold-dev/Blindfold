@@ -4,7 +4,7 @@ The official Python SDK for Blindfold - The Privacy API for AI.
 
 Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending it to LLMs or third-party services.
 
-**Works offline with zero dependencies** - Detect and redact 20+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
+**Works offline with zero dependencies** - Detect and redact 40+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
 
 ## How to use it
 
@@ -267,16 +267,39 @@ scanner = PIIScanner(entities=[EntityType.EMAIL, EntityType.CREDIT_CARD])
 | CVV/CVC | Universal | Context-required |
 | Social Security Number | US | Format rules + context |
 | Driver's License | US | Context-required |
-| Passport Number | US | Context-required |
+| US Passport | US | Context-required |
 | Tax ID / EIN | US | Prefix validation + context |
 | ZIP Code | US | Context-required |
 | IBAN | EU | ISO 7064 mod-97 checksum |
 | Postal Code | EU | DE/FR/NL patterns |
 | VAT ID | EU | Country prefix + format |
-| NI Number | UK | Format validation |
-| NHS Number | UK | Modulus-11 checksum |
+| UK NI Number | UK | Format validation |
+| UK NHS Number | UK | Modulus-11 checksum |
 | UK Postcode | UK | Pattern |
 | UK Passport | UK | Context-required |
+| German Personal ID | DE | Context-required |
+| German Tax ID | DE | Check digit |
+| French National ID (NIR) | FR | Check digit |
+| Spanish DNI | ES | Letter validation |
+| Spanish NIE | ES | Letter validation |
+| Italian Codice Fiscale | IT | Check digit |
+| Portuguese NIF | PT | Check digit |
+| Polish PESEL | PL | Check digit |
+| Polish NIP | PL | Check digit |
+| Czech Birth Number | CZ | Modulus validation |
+| Czech ICO (Company ID) | CZ | Mod-11 weighted checksum |
+| Czech DIC (Tax/VAT ID) | CZ | ICO checksum / mod-11 |
+| Czech Bank Account | CZ | Mod-11 weighted checksum |
+| Slovak Birth Number | SK | Modulus validation |
+| Dutch BSN | NL | Modulus-11 check |
+| Romanian CNP | RO | Check digit |
+| Danish CPR | DK | Date validation |
+| Swedish Personnummer | SE | Luhn algorithm |
+| Norwegian Birth Number | NO | Check digit |
+| Russian INN | RU | Check digit |
+| Russian SNILS | RU | Check digit |
+| Brazilian CPF | BR | Check digit |
+| Brazilian CNPJ | BR | Check digit |
 
 > Need names, addresses, organizations, and 60+ entity types? [Add your API key](#3-upgrade-to-blindfold-api-optional) to unlock NLP-powered detection.
 

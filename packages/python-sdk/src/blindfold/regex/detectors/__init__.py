@@ -21,6 +21,9 @@ from .it import codice_fiscale
 from .pt import nif
 from .pl import pesel, nip
 from .cz import birth_number as cz_birth_number
+from .cz import ico as cz_ico
+from .cz import dic as cz_dic
+from .cz import bank_account as cz_bank_account
 from .ru import inn, snils
 from .nl import bsn
 from .ro import cnp
