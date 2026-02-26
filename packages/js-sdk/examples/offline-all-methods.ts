@@ -86,9 +86,75 @@ async function main() {
   console.log(`   ${encrypted.text}`)
   console.log()
 
+  // ─── MULTI-LOCALE DETECTION ────────────────────────────────────
+  console.log('MULTI-LOCALE DETECTION')
+  console.log('='.repeat(65))
+  console.log()
+
+  // EU locale — IBAN detection
+  console.log('9. EU LOCALE — IBAN')
+  const euClient = new Blindfold({ locales: ['eu'] })
+  const euText = 'Wire to IBAN DE89370400440532013000 please'
+  const euResult = await euClient.detect(euText)
+  console.log(`   Input: ${euText}`)
+  console.log(`   Found ${euResult.entities_count} entities:`)
+  for (const e of euResult.detected_entities) {
+    console.log(`   - ${e.type}: "${e.text}"`)
+  }
+  console.log()
+
+  // UK locale — NI number
+  console.log('10. UK LOCALE — National Insurance Number')
+  const ukClient = new Blindfold({ locales: ['uk'] })
+  const ukText = 'NI number: AB 12 34 56 A'
+  const ukResult = await ukClient.detect(ukText)
+  console.log(`   Input: ${ukText}`)
+  console.log(`   Found ${ukResult.entities_count} entities:`)
+  for (const e of ukResult.detected_entities) {
+    console.log(`   - ${e.type}: "${e.text}"`)
+  }
+  console.log()
+
+  // CZ locale — Czech Birth Number
+  console.log('11. CZ LOCALE — Czech Birth Number')
+  const czClient = new Blindfold({ locales: ['cz'] })
+  const czText = 'Rodne cislo: 710319/2745'
+  const czResult = await czClient.detect(czText)
+  console.log(`   Input: ${czText}`)
+  console.log(`   Found ${czResult.entities_count} entities:`)
+  for (const e of czResult.detected_entities) {
+    console.log(`   - ${e.type}: "${e.text}"`)
+  }
+  console.log()
+
+  // Entity filtering — only Email Address, SSN ignored
+  console.log('12. ENTITY FILTER — only Email Address')
+  const emailOnly = new Blindfold({ entities: ['Email Address'] })
+  const filterText = 'Email support@acme.com, SSN 123-45-6789'
+  const filterResult = await emailOnly.detect(filterText)
+  console.log(`   Input: ${filterText}`)
+  console.log(`   Found ${filterResult.entities_count} entities (SSN ignored):`)
+  for (const e of filterResult.detected_entities) {
+    console.log(`   - ${e.type}: "${e.text}"`)
+  }
+  console.log()
+
+  // Combined — locales + entities
+  console.log('13. COMBINED — locales: [cz] + entities: [Czech Birth Number]')
+  const combined = new Blindfold({ locales: ['cz'], entities: ['Czech Birth Number'] })
+  const combinedText = 'Rodne cislo: 710319/2745, email test@example.com'
+  const combinedResult = await combined.detect(combinedText)
+  console.log(`   Input: ${combinedText}`)
+  console.log(`   Found ${combinedResult.entities_count} entities (email ignored):`)
+  for (const e of combinedResult.detected_entities) {
+    console.log(`   - ${e.type}: "${e.text}"`)
+  }
+  console.log()
+
   // Summary
   console.log('='.repeat(65))
   console.log('All 8 methods ran offline — zero network calls, zero API keys.')
+  console.log('Multi-locale detection supports EU, UK, CZ, and more.')
 }
 
 main().catch(console.error)
