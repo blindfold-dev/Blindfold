@@ -85,6 +85,119 @@ export enum EntityType {
   // Brazil (BR)
   BR_CPF = 'Brazilian CPF',
   BR_CNPJ = 'Brazilian CNPJ',
+
+  // US (additional)
+  US_ITIN = 'US ITIN',
+
+  // UK (additional)
+  UK_UTR = 'UK UTR',
+
+  // France (additional)
+  FR_SIREN = 'French SIREN',
+
+  // Spain (additional)
+  ES_NSS = 'Spanish NSS',
+  ES_CIF = 'Spanish CIF',
+
+  // Italy (additional)
+  IT_PARTITA_IVA = 'Italian Partita IVA',
+
+  // Poland (additional)
+  PL_REGON = 'Polish REGON',
+
+  // Slovakia (additional)
+  SK_ICO = 'Slovak ICO',
+  SK_DIC = 'Slovak DIC',
+
+  // Romania (additional)
+  RO_CUI = 'Romanian CUI',
+
+  // Denmark (additional)
+  DK_CVR = 'Danish CVR',
+
+  // Sweden (additional)
+  SE_ORGNR = 'Swedish Organisationsnummer',
+
+  // Norway (additional)
+  NO_ORGNR = 'Norwegian Organisasjonsnummer',
+
+  // Belgium (BE)
+  BE_NATIONAL_NUMBER = 'Belgian National Number',
+  BE_ENTERPRISE_NUMBER = 'Belgian Enterprise Number',
+
+  // Austria (AT)
+  AT_SVNR = 'Austrian SVNR',
+
+  // Ireland (IE)
+  IE_PPS = 'Irish PPS Number',
+
+  // Finland (FI)
+  FI_HETU = 'Finnish HETU',
+  FI_YTUNNUS = 'Finnish Y-tunnus',
+
+  // Hungary (HU)
+  HU_TAX_ID = 'Hungarian Tax ID',
+  HU_TAJ = 'Hungarian TAJ',
+
+  // Bulgaria (BG)
+  BG_EGN = 'Bulgarian EGN',
+
+  // Croatia (HR)
+  HR_OIB = 'Croatian OIB',
+
+  // Slovenia (SI)
+  SI_EMSO = 'Slovenian EMSO',
+  SI_TAX_NUMBER = 'Slovenian Tax Number',
+
+  // Lithuania (LT)
+  LT_PERSONAL_CODE = 'Lithuanian Personal Code',
+
+  // Latvia (LV)
+  LV_PERSONAL_CODE = 'Latvian Personal Code',
+
+  // Estonia (EE)
+  EE_PERSONAL_CODE = 'Estonian Personal Code',
+
+  // Canada (CA)
+  CA_SIN = 'Canadian SIN',
+
+  // Switzerland (CH)
+  CH_AHV = 'Swiss AHV',
+
+  // Australia (AU)
+  AU_TFN = 'Australian TFN',
+  AU_MEDICARE = 'Australian Medicare',
+
+  // New Zealand (NZ)
+  NZ_IRD = 'New Zealand IRD',
+
+  // India (IN)
+  IN_AADHAAR = 'Indian Aadhaar',
+  IN_PAN = 'Indian PAN',
+
+  // Japan (JP)
+  JP_MY_NUMBER = 'Japanese My Number',
+
+  // South Korea (KR)
+  KR_RRN = 'Korean RRN',
+
+  // South Africa (ZA)
+  ZA_ID = 'South African ID',
+
+  // Turkey (TR)
+  TR_KIMLIK = 'Turkish Kimlik',
+
+  // Israel (IL)
+  IL_ID = 'Israeli ID',
+
+  // Argentina (AR)
+  AR_CUIT = 'Argentine CUIT',
+
+  // Chile (CL)
+  CL_RUT = 'Chilean RUT',
+
+  // Colombia (CO)
+  CO_NIT = 'Colombian NIT',
 }
 
 /** A single PII match found by a detector. */
@@ -141,4 +254,47 @@ export const REDACTION_LABELS: Record<string, string> = {
   [EntityType.NO_BIRTH_NUMBER]: 'NO_BIRTH_NUMBER',
   [EntityType.BR_CPF]: 'BR_CPF',
   [EntityType.BR_CNPJ]: 'BR_CNPJ',
+  [EntityType.US_ITIN]: 'US_ITIN',
+  [EntityType.UK_UTR]: 'UK_UTR',
+  [EntityType.FR_SIREN]: 'FR_SIREN',
+  [EntityType.ES_NSS]: 'ES_NSS',
+  [EntityType.ES_CIF]: 'ES_CIF',
+  [EntityType.IT_PARTITA_IVA]: 'IT_PARTITA_IVA',
+  [EntityType.PL_REGON]: 'PL_REGON',
+  [EntityType.SK_ICO]: 'SK_ICO',
+  [EntityType.SK_DIC]: 'SK_DIC',
+  [EntityType.RO_CUI]: 'RO_CUI',
+  [EntityType.DK_CVR]: 'DK_CVR',
+  [EntityType.SE_ORGNR]: 'SE_ORGNR',
+  [EntityType.NO_ORGNR]: 'NO_ORGNR',
+  [EntityType.BE_NATIONAL_NUMBER]: 'BE_NATIONAL_NUMBER',
+  [EntityType.BE_ENTERPRISE_NUMBER]: 'BE_ENTERPRISE_NUMBER',
+  [EntityType.AT_SVNR]: 'AT_SVNR',
+  [EntityType.IE_PPS]: 'IE_PPS',
+  [EntityType.FI_HETU]: 'FI_HETU',
+  [EntityType.FI_YTUNNUS]: 'FI_YTUNNUS',
+  [EntityType.HU_TAX_ID]: 'HU_TAX_ID',
+  [EntityType.HU_TAJ]: 'HU_TAJ',
+  [EntityType.BG_EGN]: 'BG_EGN',
+  [EntityType.HR_OIB]: 'HR_OIB',
+  [EntityType.SI_EMSO]: 'SI_EMSO',
+  [EntityType.SI_TAX_NUMBER]: 'SI_TAX_NUMBER',
+  [EntityType.LT_PERSONAL_CODE]: 'LT_PERSONAL_CODE',
+  [EntityType.LV_PERSONAL_CODE]: 'LV_PERSONAL_CODE',
+  [EntityType.EE_PERSONAL_CODE]: 'EE_PERSONAL_CODE',
+  [EntityType.CA_SIN]: 'CA_SIN',
+  [EntityType.CH_AHV]: 'CH_AHV',
+  [EntityType.AU_TFN]: 'AU_TFN',
+  [EntityType.AU_MEDICARE]: 'AU_MEDICARE',
+  [EntityType.NZ_IRD]: 'NZ_IRD',
+  [EntityType.IN_AADHAAR]: 'IN_AADHAAR',
+  [EntityType.IN_PAN]: 'IN_PAN',
+  [EntityType.JP_MY_NUMBER]: 'JP_MY_NUMBER',
+  [EntityType.KR_RRN]: 'KR_RRN',
+  [EntityType.ZA_ID]: 'ZA_ID',
+  [EntityType.TR_KIMLIK]: 'TR_KIMLIK',
+  [EntityType.IL_ID]: 'IL_ID',
+  [EntityType.AR_CUIT]: 'AR_CUIT',
+  [EntityType.CL_RUT]: 'CL_RUT',
+  [EntityType.CO_NIT]: 'CO_NIT',
 }

@@ -4,7 +4,7 @@ The official Python SDK for Blindfold - The Privacy API for AI.
 
 Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending it to LLMs or third-party services.
 
-**Works offline with zero dependencies** - Detect and redact 40+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
+**Works offline with zero dependencies** - Detect and redact 80+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
 
 ## How to use it
 
@@ -300,6 +300,49 @@ scanner = PIIScanner(entities=[EntityType.EMAIL, EntityType.CREDIT_CARD])
 | Russian SNILS | RU | Check digit |
 | Brazilian CPF | BR | Check digit |
 | Brazilian CNPJ | BR | Check digit |
+| US ITIN | US | Format validation |
+| UK UTR | UK | Mod-11 checksum |
+| French SIREN | FR | Luhn checksum |
+| Spanish NSS | ES | Mod-97 checksum |
+| Spanish CIF | ES | Custom checksum |
+| Italian Partita IVA | IT | Luhn-like checksum |
+| Polish REGON | PL | Mod-11 checksum |
+| Slovak ICO | SK | Mod-11 weighted checksum |
+| Slovak DIC | SK | Mod-11 divisibility |
+| Romanian CUI | RO | Mod-11 checksum |
+| Danish CVR | DK | Mod-11 checksum |
+| Swedish Organisationsnummer | SE | Luhn algorithm |
+| Norwegian Organisasjonsnummer | NO | Mod-11 checksum |
+| Belgian National Number | BE | Mod-97 checksum |
+| Belgian Enterprise Number | BE | Mod-97 checksum |
+| Austrian SVNR | AT | Mod-11 checksum |
+| Irish PPS Number | IE | Mod-23 checksum |
+| Finnish HETU | FI | Mod-31 checksum |
+| Finnish Y-tunnus | FI | Mod-11 checksum |
+| Hungarian Tax ID | HU | Mod-11 checksum |
+| Hungarian TAJ | HU | Mod-10 checksum |
+| Bulgarian EGN | BG | Mod-11 checksum |
+| Croatian OIB | HR | ISO 7064 MOD 11,2 |
+| Slovenian EMSO | SI | Mod-11 checksum |
+| Slovenian Tax Number | SI | Mod-11 checksum |
+| Lithuanian Personal Code | LT | Dual-pass mod-11 |
+| Latvian Personal Code | LV | Weighted checksum |
+| Estonian Personal Code | EE | Dual-pass mod-11 |
+| Canadian SIN | CA | Luhn checksum |
+| Swiss AHV | CH | EAN-13 checksum |
+| Australian TFN | AU | Mod-11 checksum |
+| Australian Medicare | AU | Mod-10 checksum |
+| New Zealand IRD | NZ | Dual-pass mod-11 |
+| Indian Aadhaar | IN | Verhoeff algorithm |
+| Indian PAN | IN | Format validation |
+| Japanese My Number | JP | Mod-11 checksum |
+| Korean RRN | KR | Weighted checksum |
+| South African ID | ZA | Luhn checksum |
+| Turkish Kimlik | TR | Custom dual check |
+| Israeli ID | IL | Luhn checksum |
+| Argentine CUIT | AR | Mod-11 checksum |
+| Chilean RUT | CL | Mod-11 with K |
+| Colombian NIT | CO | Mod-11 prime weights |
 
 > Need names, addresses, organizations, and 60+ entity types? [Add your API key](#3-upgrade-to-blindfold-api-optional) to unlock NLP-powered detection.
 

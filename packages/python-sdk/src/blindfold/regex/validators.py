@@ -451,6 +451,623 @@ def br_cnpj_checksum(number: str) -> bool:
     return digits[13] == check2
 
 
+def us_itin_valid(number: str) -> bool:
+    """Validate US ITIN format: 9XX-[7X|8X|9X]-XXXX."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 9:
+        return False
+    if digits[0] != "9":
+        return False
+    d4 = int(digits[3])
+    return d4 >= 7
+
+
+def uk_utr_checksum(number: str) -> bool:
+    """Validate UK UTR using mod-11 weighted checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 10:
+        return False
+    weights = [6, 7, 8, 9, 10, 5, 4, 3, 2]
+    total = sum(digits[i + 1] * weights[i] for i in range(9))
+    remainder = total % 11
+    check = 0 if 11 - remainder >= 10 else 11 - remainder
+    return digits[0] == check
+
+
+def es_nss_checksum(number: str) -> bool:
+    """Validate Spanish NSS using mod-97 checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 12:
+        return False
+    province = int(digits[:2])
+    if province < 1 or province > 53:
+        return False
+    base_num = int(digits[:10])
+    check = int(digits[10:12])
+    return base_num % 97 == check
+
+
+def es_cif_checksum(number: str) -> bool:
+    """Validate Spanish CIF using custom checksum."""
+    cleaned = "".join(c for c in number if c.isalnum()).upper()
+    if len(cleaned) != 9:
+        return False
+    letter = cleaned[0]
+    if letter not in "ABCDEFGHJNPQRSUVW":
+        return False
+    total_even = 0
+    total_odd = 0
+    for i in range(1, 8):
+        d = int(cleaned[i]) if cleaned[i].isdigit() else -1
+        if d < 0:
+            return False
+        if i % 2 == 0:
+            total_even += d
+        else:
+            doubled = d * 2
+            total_odd += doubled // 10 + doubled % 10
+    total = total_even + total_odd
+    check_digit = (10 - (total % 10)) % 10
+    control = cleaned[8]
+    if letter in "KPQS":
+        return control == chr(ord("A") + check_digit)
+    if letter in "ABEH":
+        return control == str(check_digit)
+    return control == str(check_digit) or control == chr(ord("A") + check_digit)
+
+
+def it_partita_iva_checksum(number: str) -> bool:
+    """Validate Italian Partita IVA using Luhn-like algorithm."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 11:
+        return False
+    if all(d == 0 for d in digits):
+        return False
+    total = 0
+    for i in range(10):
+        if i % 2 == 0:
+            total += digits[i]
+        else:
+            doubled = digits[i] * 2
+            total += doubled - 9 if doubled > 9 else doubled
+    check = (10 - (total % 10)) % 10
+    return digits[10] == check
+
+
+def pl_regon_checksum(number: str) -> bool:
+    """Validate Polish REGON using mod-11 weighted checksum (9 or 14 digits)."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) == 9:
+        weights = [8, 9, 2, 3, 4, 5, 6, 7]
+        total = sum(d * w for d, w in zip(digits[:8], weights))
+        check = 0 if total % 11 == 10 else total % 11
+        return digits[8] == check
+    if len(digits) == 14:
+        weights9 = [8, 9, 2, 3, 4, 5, 6, 7]
+        total9 = sum(d * w for d, w in zip(digits[:8], weights9))
+        check9 = 0 if total9 % 11 == 10 else total9 % 11
+        if digits[8] != check9:
+            return False
+        weights14 = [2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8]
+        total14 = sum(d * w for d, w in zip(digits[:13], weights14))
+        check14 = 0 if total14 % 11 == 10 else total14 % 11
+        return digits[13] == check14
+    return False
+
+
+def sk_ico_checksum(number: str) -> bool:
+    """Validate Slovak ICO using same algorithm as Czech ICO."""
+    return cz_ico_checksum(number)
+
+
+def sk_dic_valid(number: str) -> bool:
+    """Validate Slovak DIC: SK prefix + digits divisible by 11."""
+    cleaned = number.strip()
+    if cleaned.upper().startswith("SK"):
+        cleaned = cleaned[2:]
+    if not cleaned.isdigit() or len(cleaned) != 10:
+        return False
+    return int(cleaned) % 11 == 0
+
+
+def ro_cui_checksum(number: str) -> bool:
+    """Validate Romanian CUI using mod-11 weighted checksum."""
+    cleaned = number.strip().upper()
+    if cleaned.startswith("RO"):
+        cleaned = cleaned[2:]
+    digits = [int(c) for c in cleaned if c.isdigit()]
+    if len(digits) < 2 or len(digits) > 10:
+        return False
+    weights = [7, 5, 3, 2, 1, 7, 5, 3, 2]
+    padded = [0] * (10 - len(digits)) + digits
+    check = padded.pop()
+    total = sum(d * w for d, w in zip(padded, weights))
+    expected = (total * 10) % 11
+    if expected == 10:
+        expected = 0
+    return check == expected
+
+
+def dk_cvr_checksum(number: str) -> bool:
+    """Validate Danish CVR using mod-11 weighted checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 8:
+        return False
+    weights = [2, 7, 6, 5, 4, 3, 2, 1]
+    total = sum(d * w for d, w in zip(digits, weights))
+    return total % 11 == 0
+
+
+def se_orgnr_checksum(number: str) -> bool:
+    """Validate Swedish Organisationsnummer using Luhn on 10 digits."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 10:
+        return False
+    if int(digits[2]) < 2:
+        return False
+    return luhn_checksum(digits)
+
+
+def no_orgnr_checksum(number: str) -> bool:
+    """Validate Norwegian Organisasjonsnummer using mod-11 weighted checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 9:
+        return False
+    weights = [3, 2, 7, 6, 5, 4, 3, 2]
+    total = sum(d * w for d, w in zip(digits[:8], weights))
+    remainder = total % 11
+    if remainder == 1:
+        return False
+    check = 0 if remainder == 0 else 11 - remainder
+    return digits[8] == check
+
+
+def be_national_number_checksum(number: str) -> bool:
+    """Validate Belgian National Number using mod-97 checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 11:
+        return False
+    base = int(digits[:9])
+    check = int(digits[9:11])
+    if 97 - (base % 97) == check:
+        return True
+    base_2000 = int("2" + digits[:9])
+    return 97 - (base_2000 % 97) == check
+
+
+def be_enterprise_checksum(number: str) -> bool:
+    """Validate Belgian Enterprise Number using mod-97 checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 10:
+        return False
+    if digits[0] not in ("0", "1"):
+        return False
+    base = int(digits[:8])
+    check = int(digits[8:10])
+    return 97 - (base % 97) == check
+
+
+def at_svnr_checksum(number: str) -> bool:
+    """Validate Austrian SVNR (Social Insurance Number)."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 10:
+        return False
+    weights = [3, 7, 9, 0, 5, 8, 4, 2, 1, 6]
+    total = sum(d * w for d, w in zip(digits, weights))
+    return total % 11 == digits[3]
+
+
+def ie_pps_checksum(number: str) -> bool:
+    """Validate Irish PPS Number using mod-23 checksum."""
+    cleaned = "".join(c for c in number if c.isalnum()).upper()
+    if len(cleaned) not in (8, 9):
+        return False
+    total = 0
+    for i in range(7):
+        if not cleaned[i].isdigit():
+            return False
+        total += int(cleaned[i]) * (8 - i)
+    if len(cleaned) == 9 and cleaned[8].isalpha():
+        total += (ord(cleaned[8]) - 64) * 9
+    remainder = total % 23
+    expected = "W" if remainder == 0 else chr(ord("A") + remainder - 1)
+    return cleaned[7] == expected
+
+
+def fi_hetu_checksum(number: str) -> bool:
+    """Validate Finnish HETU using mod-31 checksum."""
+    cleaned = number.replace(" ", "").replace("-", "")
+    if len(cleaned) != 11:
+        cleaned = number.strip()
+    if len(cleaned) != 11:
+        return False
+    date_part = cleaned[:6]
+    if not date_part.isdigit():
+        return False
+    sep = cleaned[6]
+    if sep not in "-+ABCDEFYXWVU":
+        return False
+    num_part = cleaned[7:10]
+    if not num_part.isdigit():
+        return False
+    check_chars = "0123456789ABCDEFHJKLMNPRSTUVWXY"
+    combined = int(date_part + num_part)
+    expected = check_chars[combined % 31]
+    return cleaned[10].upper() == expected
+
+
+def fi_ytunnus_checksum(number: str) -> bool:
+    """Validate Finnish Y-tunnus (Business ID) using mod-11 weighted checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 8:
+        return False
+    weights = [7, 9, 10, 5, 8, 4, 2]
+    total = sum(int(digits[i]) * weights[i] for i in range(7))
+    remainder = total % 11
+    if remainder == 1:
+        return False
+    check = 0 if remainder == 0 else 11 - remainder
+    return int(digits[7]) == check
+
+
+def hu_tax_id_checksum(number: str) -> bool:
+    """Validate Hungarian Tax ID using mod-11 weighted checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 10:
+        return False
+    if digits[0] != 8:
+        return False
+    weights = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    total = sum(d * w for d, w in zip(digits[:9], weights))
+    return digits[9] == total % 11
+
+
+def hu_taj_checksum(number: str) -> bool:
+    """Validate Hungarian TAJ (Social Security) using mod-10 with 3/7 weights."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 9:
+        return False
+    total = sum(d * (3 if i % 2 == 0 else 7) for i, d in enumerate(digits[:8]))
+    return digits[8] == total % 10
+
+
+def bg_egn_checksum(number: str) -> bool:
+    """Validate Bulgarian EGN using weighted mod-11 checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 10:
+        return False
+    month = int(number[2:4]) if len(number) >= 4 else 0
+    base_month = month - 40 if month > 40 else month - 20 if month > 20 else month
+    if base_month < 1 or base_month > 12:
+        return False
+    weights = [2, 4, 8, 5, 10, 9, 7, 3, 6]
+    total = sum(d * w for d, w in zip(digits[:9], weights))
+    check = total % 11
+    if check == 10:
+        check = 0
+    return digits[9] == check
+
+
+def hr_oib_checksum(number: str) -> bool:
+    """Validate Croatian OIB using ISO 7064 MOD 11,2."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 11:
+        return False
+    remainder = 10
+    for i in range(10):
+        remainder = (remainder + digits[i]) % 10
+        if remainder == 0:
+            remainder = 10
+        remainder = (remainder * 2) % 11
+    check = 11 - remainder
+    if check == 10:
+        check = 0
+    return digits[10] == check
+
+
+def si_emso_checksum(number: str) -> bool:
+    """Validate Slovenian EMSO using mod-11 weighted checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 13:
+        return False
+    weights = [7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
+    total = sum(d * w for d, w in zip(digits[:12], weights))
+    remainder = total % 11
+    check = 0 if remainder == 0 else 11 - remainder
+    if check == 10:
+        return False
+    return digits[12] == check
+
+
+def si_tax_number_checksum(number: str) -> bool:
+    """Validate Slovenian Tax Number using mod-11."""
+    cleaned = number.strip().upper()
+    if cleaned.startswith("SI"):
+        cleaned = cleaned[2:]
+    digits = [int(c) for c in cleaned if c.isdigit()]
+    if len(digits) != 8:
+        return False
+    weights = [8, 7, 6, 5, 4, 3, 2]
+    total = sum(d * w for d, w in zip(digits[:7], weights))
+    remainder = total % 11
+    if remainder in (0, 1):
+        return digits[7] == 0
+    return digits[7] == 11 - remainder
+
+
+def lt_personal_code_checksum(number: str) -> bool:
+    """Validate Lithuanian Personal Code using dual-pass mod-11 checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 11:
+        return False
+    if digits[0] < 1 or digits[0] > 6:
+        return False
+    weights1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]
+    total = sum(d * w for d, w in zip(digits[:10], weights1))
+    check = total % 11
+    if check == 10:
+        weights2 = [3, 4, 5, 6, 7, 8, 9, 1, 2, 3]
+        total = sum(d * w for d, w in zip(digits[:10], weights2))
+        check = total % 11
+        if check == 10:
+            check = 0
+    return digits[10] == check
+
+
+def lv_personal_code_checksum(number: str) -> bool:
+    """Validate Latvian Personal Code (old format with checksum)."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 11:
+        return False
+    day = int(digits[:2])
+    month = int(digits[2:4])
+    # New format starts with 32
+    if digits[0] == "3" and digits[1] == "2":
+        return True
+    if day < 1 or day > 31:
+        return False
+    if month < 1 or month > 12:
+        return False
+    weights = [1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+    total = sum(int(digits[i]) * weights[i] for i in range(10))
+    check = ((1101 - total) % 11) % 10
+    return int(digits[10]) == check
+
+
+def ee_personal_code_checksum(number: str) -> bool:
+    """Validate Estonian Personal Code using dual-pass mod-11 checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 11:
+        return False
+    if digits[0] < 1 or digits[0] > 6:
+        return False
+    weights1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]
+    total = sum(d * w for d, w in zip(digits[:10], weights1))
+    check = total % 11
+    if check == 10:
+        weights2 = [3, 4, 5, 6, 7, 8, 9, 1, 2, 3]
+        total = sum(d * w for d, w in zip(digits[:10], weights2))
+        check = total % 11
+        if check == 10:
+            check = 0
+    return digits[10] == check
+
+
+def ch_ahv_checksum(number: str) -> bool:
+    """Validate Swiss AHV using EAN-13 checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 13:
+        return False
+    if not digits.startswith("756"):
+        return False
+    total = sum(int(digits[i]) * (1 if i % 2 == 0 else 3) for i in range(12))
+    check = (10 - (total % 10)) % 10
+    return int(digits[12]) == check
+
+
+def au_tfn_checksum(number: str) -> bool:
+    """Validate Australian TFN using mod-11 weighted checksum."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) == 8:
+        weights = [10, 7, 8, 4, 6, 3, 5, 1]
+        total = sum(d * w for d, w in zip(digits, weights))
+        return total % 11 == 0
+    if len(digits) == 9:
+        weights = [1, 4, 3, 7, 5, 8, 6, 9, 10]
+        total = sum(d * w for d, w in zip(digits, weights))
+        return total % 11 == 0
+    return False
+
+
+def au_medicare_checksum(number: str) -> bool:
+    """Validate Australian Medicare number using mod-10 weighted checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) < 10 or len(digits) > 11:
+        return False
+    weights = [1, 3, 7, 9, 1, 3, 7, 9]
+    total = sum(int(digits[i]) * weights[i] for i in range(8))
+    return int(digits[8]) == total % 10
+
+
+def nz_ird_checksum(number: str) -> bool:
+    """Validate New Zealand IRD using dual-pass mod-11 checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) not in (8, 9):
+        return False
+    if len(digits) == 8:
+        digits = "0" + digits
+    d = [int(c) for c in digits]
+    weights1 = [3, 2, 7, 6, 5, 4, 3, 2]
+    total = sum(d[i] * weights1[i] for i in range(8))
+    remainder = total % 11
+    if remainder == 0:
+        return d[8] == 0
+    if 11 - remainder != 10:
+        return d[8] == 11 - remainder
+    weights2 = [7, 4, 3, 2, 5, 2, 7, 6]
+    total = sum(d[i] * weights2[i] for i in range(8))
+    r2 = total % 11
+    if r2 == 0:
+        return d[8] == 0
+    return d[8] == 11 - r2
+
+
+# Verhoeff lookup tables
+_VERHOEFF_D = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+    [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+    [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+    [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+    [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+    [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+    [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+    [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+    [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+]
+_VERHOEFF_P = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+    [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+    [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+    [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+    [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+    [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+    [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+]
+
+
+def in_aadhaar_checksum(number: str) -> bool:
+    """Validate Indian Aadhaar using Verhoeff algorithm."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 12:
+        return False
+    if digits[0] in ("0", "1"):
+        return False
+    c = 0
+    for i in range(len(digits) - 1, -1, -1):
+        c = _VERHOEFF_D[c][_VERHOEFF_P[(len(digits) - 1 - i) % 8][int(digits[i])]]
+    return c == 0
+
+
+def in_pan_valid(number: str) -> bool:
+    """Validate Indian PAN format: AAAAA0000A."""
+    import re
+    cleaned = number.strip().upper()
+    if len(cleaned) != 10:
+        return False
+    return bool(re.match(r"^[A-Z]{3}[ABCFGHLJPT][A-Z]\d{4}[A-Z]$", cleaned))
+
+
+def jp_my_number_checksum(number: str) -> bool:
+    """Validate Japanese My Number using mod-11 checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 12:
+        return False
+    total = 0
+    for i in range(11):
+        p = 11 - i
+        q = p + 1 if p <= 6 else p - 5
+        total += int(digits[i]) * q
+    remainder = total % 11
+    check = 0 if remainder <= 1 else 11 - remainder
+    return int(digits[11]) == check
+
+
+def kr_rrn_checksum(number: str) -> bool:
+    """Validate Korean RRN using weighted mod checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 13:
+        return False
+    weights = [2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5]
+    total = sum(int(digits[i]) * weights[i] for i in range(12))
+    check = (11 - (total % 11)) % 10
+    return int(digits[12]) == check
+
+
+def tr_kimlik_checksum(number: str) -> bool:
+    """Validate Turkish Kimlik using custom dual check digit algorithm."""
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) != 11:
+        return False
+    if digits[0] == 0:
+        return False
+    odd_sum = digits[0] + digits[2] + digits[4] + digits[6] + digits[8]
+    even_sum = digits[1] + digits[3] + digits[5] + digits[7]
+    check1 = ((odd_sum * 7) - even_sum) % 10
+    if check1 < 0:
+        check1 += 10
+    if check1 != digits[9]:
+        return False
+    total = sum(digits[:10])
+    return total % 10 == digits[10]
+
+
+def ar_cuit_checksum(number: str) -> bool:
+    """Validate Argentine CUIT using mod-11 weighted checksum."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) != 11:
+        return False
+    weights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
+    total = sum(int(digits[i]) * weights[i] for i in range(10))
+    remainder = total % 11
+    if remainder == 0:
+        check = 0
+    elif remainder == 1:
+        check = 9
+    else:
+        check = 11 - remainder
+    return int(digits[10]) == check
+
+
+def cl_rut_checksum(number: str) -> bool:
+    """Validate Chilean RUT using mod-11 checksum with K."""
+    cleaned = number.replace(".", "").replace(" ", "").upper()
+    if "-" in cleaned:
+        parts = cleaned.split("-")
+        if len(parts) != 2:
+            return False
+        cleaned = parts[0] + parts[1]
+    if len(cleaned) < 2:
+        return False
+    body = cleaned[:-1]
+    check_char = cleaned[-1]
+    if not body.isdigit():
+        return False
+    total = 0
+    mul = 2
+    for c in reversed(body):
+        total += int(c) * mul
+        mul = 2 if mul == 7 else mul + 1
+    remainder = 11 - (total % 11)
+    if remainder == 11:
+        expected = "0"
+    elif remainder == 10:
+        expected = "K"
+    else:
+        expected = str(remainder)
+    return check_char == expected
+
+
+def co_nit_checksum(number: str) -> bool:
+    """Validate Colombian NIT using mod-11 with prime-based weights."""
+    digits = "".join(c for c in number if c.isdigit())
+    if len(digits) < 8 or len(digits) > 10:
+        return False
+    body = digits[:-1]
+    check = int(digits[-1])
+    weights = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71]
+    total = sum(int(body[len(body) - 1 - i]) * weights[i] for i in range(len(body)))
+    remainder = total % 11
+    if remainder == 0:
+        expected = 0
+    elif remainder == 1:
+        expected = 1
+    else:
+        expected = 11 - remainder
+    return check == expected
+
+
 def nhs_checksum(number: str) -> bool:
     """Validate NHS number using modulus 11 checksum."""
     digits = [int(c) for c in number if c.isdigit()]
