@@ -13,29 +13,27 @@ def scanner():
 class TestRedactEmail:
     def test_redact_email(self, scanner):
         redacted, matches = scanner.redact("Contact support@example.com for details.")
-        assert "<Email Address>" in redacted
         assert "support@example.com" not in redacted
+        assert redacted == "Contact for details."
 
     def test_redact_preserves_surrounding(self, scanner):
         redacted, _ = scanner.redact("Contact support@example.com for details.")
-        assert redacted.startswith("Contact ")
-        assert redacted.endswith(" for details.")
+        assert redacted.startswith("Contact")
+        assert redacted.endswith("for details.")
 
 
 class TestRedactSSN:
     def test_redact_ssn(self, scanner):
         redacted, matches = scanner.redact("SSN: 123-45-6789")
-        assert "<Social Security Number>" in redacted
         assert "123-45-6789" not in redacted
 
 
 class TestRedactMultiple:
     def test_redact_multiple_entities(self, scanner):
         redacted, matches = scanner.redact("Email john@acme.com, SSN 123-45-6789")
-        assert "<Email Address>" in redacted
-        assert "<Social Security Number>" in redacted
         assert "john@acme.com" not in redacted
         assert "123-45-6789" not in redacted
+        assert redacted == "Email, SSN"
 
     def test_redact_returns_matches(self, scanner):
         _, matches = scanner.redact("Email john@acme.com, SSN 123-45-6789")
@@ -206,7 +204,7 @@ class TestBlindfoldLocalRedact:
         from blindfold.client import Blindfold
         client = Blindfold()
         response = client.redact("Email john@acme.com")
-        assert "<Email Address>" in response.text
+        assert "john@acme.com" not in response.text
         assert response.entities_count >= 1
 
 

@@ -70,7 +70,7 @@ export class PIIScanner {
   }
 
   /**
-   * Detect and replace PII with `<Entity Name>` placeholders.
+   * Detect and remove PII from text.
    * Returns a tuple of [redactedText, detectedMatches].
    */
   redact(text: string): [string, PIIMatch[]] {
@@ -83,7 +83,9 @@ export class PIIScanner {
     const sortedMatches = [...matches].sort((a, b) => b.start - a.start)
     let result = text
     for (const m of sortedMatches) {
-      result = result.slice(0, m.start) + '<' + m.entityType + '>' + result.slice(m.end)
+      // Also consume a preceding space to keep output clean
+      const start = m.start > 0 && result[m.start - 1] === ' ' ? m.start - 1 : m.start
+      result = result.slice(0, start) + result.slice(m.end)
     }
 
     return [result, matches]

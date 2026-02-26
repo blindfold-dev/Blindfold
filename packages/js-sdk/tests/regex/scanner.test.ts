@@ -42,22 +42,22 @@ describe('PIIScanner detect', () => {
 describe('PIIScanner redact', () => {
   const scanner = new PIIScanner({ locales: ['us', 'eu'] })
 
-  test('should redact email with entity name placeholder', () => {
+  test('should remove email from text', () => {
     const [redacted] = scanner.redact('Contact support@example.com for details.')
-    expect(redacted).toContain('<Email Address>')
     expect(redacted).not.toContain('support@example.com')
+    expect(redacted).toBe('Contact for details.')
   })
 
-  test('should redact SSN with entity name placeholder', () => {
+  test('should remove SSN from text', () => {
     const [redacted] = scanner.redact('SSN: 123-45-6789')
-    expect(redacted).toContain('<Social Security Number>')
     expect(redacted).not.toContain('123-45-6789')
   })
 
-  test('should redact multiple entities', () => {
+  test('should remove multiple entities', () => {
     const [redacted, matches] = scanner.redact('Email john@acme.com, SSN 123-45-6789')
-    expect(redacted).toContain('<Email Address>')
-    expect(redacted).toContain('<Social Security Number>')
+    expect(redacted).not.toContain('john@acme.com')
+    expect(redacted).not.toContain('123-45-6789')
+    expect(redacted).toBe('Email, SSN')
     expect(matches.length).toBeGreaterThanOrEqual(2)
   })
 

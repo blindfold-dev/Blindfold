@@ -99,7 +99,7 @@ class PIIScanner:
         return self._deduplicate(all_matches)
 
     def redact(self, text: str) -> Tuple[str, List[PIIMatch]]:
-        """Detect and replace PII with ``<Entity Name>`` placeholders.
+        """Detect and remove PII from text.
 
         Returns a tuple of (redacted_text, detected_matches).
         """
@@ -111,7 +111,9 @@ class PIIScanner:
         sorted_matches = sorted(matches, key=lambda m: m.start, reverse=True)
         result = text
         for m in sorted_matches:
-            result = result[:m.start] + "<" + m.entity_type + ">" + result[m.end:]
+            # Also consume a preceding space to keep output clean
+            start = m.start - 1 if m.start > 0 and result[m.start - 1] == " " else m.start
+            result = result[:start] + result[m.end:]
 
         return result, matches
 
