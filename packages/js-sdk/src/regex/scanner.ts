@@ -3,6 +3,7 @@
 import * as crypto from 'crypto'
 import { EntityType, PIIMatch } from './entities'
 import { DetectorRegistry } from './registry'
+import { synthesizeValue } from './synthesizers'
 
 // Force import of all detectors so they auto-register
 import './detectors/index'
@@ -31,6 +32,11 @@ export interface HashResult {
 }
 
 export interface EncryptResult {
+  text: string
+  matches: PIIMatch[]
+}
+
+export interface SynthesizeResult {
   text: string
   matches: PIIMatch[]
 }
@@ -201,6 +207,26 @@ export class PIIScanner {
       const encrypted = Buffer.concat([cipher.update(m.text, 'utf8'), cipher.final()])
       const combined = Buffer.concat([iv, encrypted])
       const replacement = combined.toString('base64')
+      result = result.slice(0, m.start) + replacement + result.slice(m.end)
+    }
+
+    return { text: result, matches }
+  }
+
+  /**
+   * Detect PII and replace each match with format-preserving synthetic data.
+   * @param _language - Accepted for API compatibility but ignored locally.
+   */
+  synthesize(text: string, _language?: string): SynthesizeResult {
+    const matches = this.detect(text)
+    if (matches.length === 0) {
+      return { text, matches: [] }
+    }
+
+    const sortedMatches = [...matches].sort((a, b) => b.start - a.start)
+    let result = text
+    for (const m of sortedMatches) {
+      const replacement = synthesizeValue(m.entityType, m.text)
       result = result.slice(0, m.start) + replacement + result.slice(m.end)
     }
 

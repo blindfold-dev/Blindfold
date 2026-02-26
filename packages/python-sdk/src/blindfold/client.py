@@ -37,9 +37,9 @@ class Blindfold:
     Blindfold client for tokenization and detokenization operations.
 
     This client supports both synchronous operations using httpx.Client.
-    When no ``api_key`` is provided, all methods except ``synthesize()`` run
-    locally using the built-in regex PII scanner.  Set ``mode="local"`` to force
-    local mode even when an API key is present.
+    When no ``api_key`` is provided, all methods run locally using the
+    built-in regex PII scanner.  Set ``mode="local"`` to force local mode
+    even when an API key is present.
     """
 
     def __init__(
@@ -591,8 +591,9 @@ class Blindfold:
         """
         Synthesize (replace real data with synthetic fake data).
 
-        Replaces real sensitive data with realistic fake data using Faker library.
-        This is useful for data science, demos, and testing.
+        When no API key is set (or ``mode="local"``), synthesis runs locally
+        using format-preserving random generation. The ``language`` parameter
+        is accepted for API compatibility but ignored in local mode.
 
         Args:
             text: Text to synthesize
@@ -610,6 +611,9 @@ class Blindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
+        if self._use_local:
+            return self._synthesize_local(text)
+
         payload: Dict[str, Any] = {"text": text, "language": language}
         if entities is not None:
             payload["entities"] = entities
@@ -628,6 +632,27 @@ class Blindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    def _synthesize_local(self, text: str) -> SynthesizeResponse:
+        """Run local regex-based PII synthesis."""
+        from .models import DetectedEntity
+
+        scanner = self._get_scanner()
+        result = scanner.synthesize(text)
+
+        detected = [
+            DetectedEntity(
+                type=m.entity_type, text=m.text,
+                start=m.start, end=m.end, score=m.score,
+            )
+            for m in result.matches
+        ]
+
+        return SynthesizeResponse(
+            text=result.text,
+            detected_entities=detected,
+            entities_count=len(detected),
+        )
 
     def hash(
         self,
@@ -1518,8 +1543,9 @@ class AsyncBlindfold:
         """
         Synthesize (replace real data with synthetic fake data).
 
-        Replaces real sensitive data with realistic fake data using Faker library.
-        This is useful for data science, demos, and testing.
+        When no API key is set (or ``mode="local"``), synthesis runs locally
+        using format-preserving random generation. The ``language`` parameter
+        is accepted for API compatibility but ignored in local mode.
 
         Args:
             text: Text to synthesize
@@ -1537,6 +1563,9 @@ class AsyncBlindfold:
             APIError: If API request fails
             NetworkError: If network request fails
         """
+        if self._use_local:
+            return self._synthesize_local(text)
+
         payload: Dict[str, Any] = {"text": text, "language": language}
         if entities is not None:
             payload["entities"] = entities
@@ -1555,6 +1584,27 @@ class AsyncBlindfold:
             raise APIError(
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
+
+    def _synthesize_local(self, text: str) -> SynthesizeResponse:
+        """Run local regex-based PII synthesis."""
+        from .models import DetectedEntity
+
+        scanner = self._get_scanner()
+        result = scanner.synthesize(text)
+
+        detected = [
+            DetectedEntity(
+                type=m.entity_type, text=m.text,
+                start=m.start, end=m.end, score=m.score,
+            )
+            for m in result.matches
+        ]
+
+        return SynthesizeResponse(
+            text=result.text,
+            detected_entities=detected,
+            entities_count=len(detected),
+        )
 
     async def hash(
         self,

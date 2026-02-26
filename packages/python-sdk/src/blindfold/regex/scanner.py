@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from .entities import EntityType, PIIMatch
 from .registry import DetectorRegistry
+from .synthesizers import synthesize_value
 
 # Force import of all detectors so they auto-register
 from . import detectors as _detectors  # noqa: F401
@@ -45,6 +46,16 @@ class HashResult:
 
 class EncryptResult:
     """Result of encrypt operation."""
+
+    __slots__ = ("text", "matches")
+
+    def __init__(self, text: str, matches: List[PIIMatch]) -> None:
+        self.text = text
+        self.matches = matches
+
+
+class SynthesizeResult:
+    """Result of synthesize operation."""
 
     __slots__ = ("text", "matches")
 
@@ -230,6 +241,25 @@ class PIIScanner:
             result = result[:m.start] + replacement + result[m.end:]
 
         return EncryptResult(text=result, matches=matches)
+
+    def synthesize(self, text: str, language: Optional[str] = None) -> SynthesizeResult:
+        """Detect PII and replace each match with format-preserving synthetic data.
+
+        Args:
+            text: Text to process.
+            language: Accepted for API compatibility but ignored locally.
+        """
+        matches = self.detect(text)
+        if not matches:
+            return SynthesizeResult(text=text, matches=[])
+
+        sorted_matches = sorted(matches, key=lambda m: m.start, reverse=True)
+        result = text
+        for m in sorted_matches:
+            replacement = synthesize_value(m.entity_type, m.text)
+            result = result[:m.start] + replacement + result[m.end:]
+
+        return SynthesizeResult(text=result, matches=matches)
 
     @staticmethod
     def _deduplicate(matches: List[PIIMatch]) -> List[PIIMatch]:

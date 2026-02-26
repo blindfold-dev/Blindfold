@@ -166,6 +166,45 @@ describe('PIIScanner hash', () => {
   })
 })
 
+describe('PIIScanner synthesize', () => {
+  const scanner = new PIIScanner({ locales: ['us', 'eu'] })
+
+  test('should replace email with synthetic value', () => {
+    const result = scanner.synthesize('Contact support@example.com for details.')
+    expect(result.text).not.toContain('support@example.com')
+    expect(result.text).toContain('@')
+    expect(result.matches.length).toBe(1)
+  })
+
+  test('should replace SSN with format-preserving value', () => {
+    const result = scanner.synthesize('SSN: 123-45-6789')
+    expect(result.text).not.toContain('123-45-6789')
+    // Should preserve separator pattern: ###-##-####
+    expect(result.text).toMatch(/SSN: \d{3}-\d{2}-\d{4}/)
+    expect(result.matches.length).toBe(1)
+  })
+
+  test('should produce different results on multiple calls', () => {
+    const results = new Set<string>()
+    for (let i = 0; i < 5; i++) {
+      results.add(scanner.synthesize('Email john@acme.com').text)
+    }
+    expect(results.size).toBeGreaterThan(1)
+  })
+
+  test('should return original text when no PII', () => {
+    const result = scanner.synthesize('No sensitive data here.')
+    expect(result.text).toBe('No sensitive data here.')
+    expect(result.matches).toEqual([])
+  })
+
+  test('should replace IP address with valid-looking IP', () => {
+    const result = scanner.synthesize('Server at 192.168.1.100')
+    expect(result.text).not.toContain('192.168.1.100')
+    expect(result.text).toMatch(/Server at \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/)
+  })
+})
+
 describe('PIIScanner encrypt', () => {
   const scanner = new PIIScanner({ locales: ['us', 'eu'] })
   const key = 'my-secret-key-1234567890'

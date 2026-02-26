@@ -37,9 +37,9 @@ function sleep(ms: number): Promise<void> {
 /**
  * Blindfold client for tokenization and detokenization.
  *
- * When no `apiKey` is provided, all methods except `synthesize()` run
- * locally using the built-in regex PII scanner.  Set `mode: "local"` to
- * force local mode even when an API key is present.
+ * When no `apiKey` is provided, all methods run locally using the
+ * built-in regex PII scanner.  Set `mode: "local"` to force local
+ * mode even when an API key is present.
  */
 export class Blindfold {
   private apiKey?: string
@@ -404,15 +404,40 @@ export class Blindfold {
   /**
    * Synthesize (replace real data with synthetic fake data)
    *
+   * When no API key is set (or `mode: "local"`), synthesis runs locally
+   * using format-preserving random generation.
+   *
    * @param text - Text to synthesize
    * @param config - Optional configuration (language, entities)
    * @returns Promise with synthetic text and detected entities
    */
   async synthesize(text: string, config?: SynthesizeConfig): Promise<SynthesizeResponse> {
+    if (this.useLocal) {
+      return this.synthesizeLocal(text)
+    }
     return this.request<SynthesizeResponse>('/synthesize', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private synthesizeLocal(text: string): SynthesizeResponse {
+    const scanner = this.getScanner()
+    const result = scanner.synthesize(text)
+
+    const detected: DetectedEntity[] = result.matches.map((m) => ({
+      type: m.entityType,
+      text: m.text,
+      start: m.start,
+      end: m.end,
+      score: m.score,
+    }))
+
+    return {
+      text: result.text,
+      detected_entities: detected,
+      entities_count: detected.length,
+    }
   }
 
   /**

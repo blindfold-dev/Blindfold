@@ -152,6 +152,55 @@ class TestEncrypt:
         assert result.matches == []
 
 
+class TestSynthesize:
+    def test_synthesize_email(self, scanner):
+        result = scanner.synthesize("Contact support@example.com for details.")
+        assert "support@example.com" not in result.text
+        assert "@" in result.text
+        assert len(result.matches) == 1
+
+    def test_synthesize_ssn_format_preserving(self, scanner):
+        result = scanner.synthesize("SSN: 123-45-6789")
+        assert "123-45-6789" not in result.text
+        # Should preserve separator pattern: ###-##-####
+        import re
+        assert re.search(r"\d{3}-\d{2}-\d{4}", result.text)
+
+    def test_synthesize_produces_different_results(self, scanner):
+        results = set()
+        for _ in range(5):
+            results.add(scanner.synthesize("Email john@acme.com").text)
+        assert len(results) > 1
+
+    def test_synthesize_no_pii(self, scanner):
+        result = scanner.synthesize("No sensitive data here.")
+        assert result.text == "No sensitive data here."
+        assert result.matches == []
+
+    def test_synthesize_ip_address(self, scanner):
+        result = scanner.synthesize("Server at 192.168.1.100")
+        assert "192.168.1.100" not in result.text
+        import re
+        assert re.search(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", result.text)
+
+
+class TestBlindfoldLocalSynthesize:
+    def test_blindfold_no_key_uses_local_synthesize(self):
+        from blindfold.client import Blindfold
+        client = Blindfold()
+        response = client.synthesize("Email john@acme.com")
+        assert "john@acme.com" not in response.text
+        assert response.entities_count >= 1
+
+    def test_blindfold_local_synthesize_different_each_call(self):
+        from blindfold.client import Blindfold
+        client = Blindfold()
+        results = set()
+        for _ in range(5):
+            results.add(client.synthesize("Email john@acme.com").text)
+        assert len(results) > 1
+
+
 class TestBlindfoldLocalRedact:
     def test_blindfold_no_key_uses_local_redact(self):
         from blindfold.client import Blindfold
