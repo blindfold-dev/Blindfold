@@ -8,9 +8,7 @@ import { nlBsn11test } from '../../validators'
 class NlBsnDetector extends RegexDetector {
   entityType = EntityType.NL_BSN
   score = 0.85
-  contextKeywords = [
-    'bsn', 'burgerservicenummer', 'sofi', 'citizen service',
-  ]
+  contextKeywords = ['bsn', 'burgerservicenummer', 'sofi', 'citizen service']
   contextRequired = true
 
   pattern = /\b\d{9}\b/g

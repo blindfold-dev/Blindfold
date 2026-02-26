@@ -7,10 +7,8 @@ import { roCnpChecksum } from '../../validators'
 
 class RoCnpDetector extends RegexDetector {
   entityType = EntityType.RO_CNP
-  score = 0.90
-  contextKeywords = [
-    'cnp', 'cod numeric personal', 'personal numeric code',
-  ]
+  score = 0.9
+  contextKeywords = ['cnp', 'cod numeric personal', 'personal numeric code']
   contextRequired = false
 
   pattern = /\b[1-8]\d{12}\b/g

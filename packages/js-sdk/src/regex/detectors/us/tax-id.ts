@@ -6,10 +6,15 @@ import { registerRegion } from '../../registry'
 
 class TaxIdDetector extends RegexDetector {
   entityType = EntityType.TAX_ID
-  score = 0.80
+  score = 0.8
   contextKeywords = [
-    'ein', 'tax id', 'tax identification', 'employer identification',
-    'tin', 'tax #', 'ein#',
+    'ein',
+    'tax id',
+    'tax identification',
+    'employer identification',
+    'tin',
+    'tax #',
+    'ein#',
   ]
   contextRequired = true
   contextWindow = 50

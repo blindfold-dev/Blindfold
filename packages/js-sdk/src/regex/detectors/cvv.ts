@@ -6,11 +6,8 @@ import { registerUniversal } from '../registry'
 
 class CvvDetector extends RegexDetector {
   entityType = EntityType.CVV
-  score = 0.80
-  contextKeywords = [
-    'cvv', 'cvc', 'security code', 'card verification', 'cvv2', 'cvc2',
-    'csv',
-  ]
+  score = 0.8
+  contextKeywords = ['cvv', 'cvc', 'security code', 'card verification', 'cvv2', 'cvc2', 'csv']
   contextRequired = true
   contextWindow = 50
 

@@ -7,10 +7,7 @@ import { registerRegion } from '../../registry'
 class UkPassportDetector extends RegexDetector {
   entityType = EntityType.UK_PASSPORT
   score = 0.75
-  contextKeywords = [
-    'passport', 'passport#', 'passport #', 'passport number',
-    'passport no',
-  ]
+  contextKeywords = ['passport', 'passport#', 'passport #', 'passport number', 'passport no']
   contextRequired = true
   contextWindow = 50
 

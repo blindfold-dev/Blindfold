@@ -1,10 +1,12 @@
 import { Blindfold } from '../src/client'
 import { APIError, AuthenticationError, NetworkError } from '../src/errors'
-import { originalFetch, restoreFetch } from './helpers'
+import { restoreFetch } from './helpers'
 
 afterEach(restoreFetch)
 
-function mockFetchSequence(responses: Array<{ ok: boolean; status: number; body?: unknown } | Error>) {
+function mockFetchSequence(
+  responses: Array<{ ok: boolean; status: number; body?: unknown } | Error>
+) {
   let callIndex = 0
   return jest.fn(() => {
     const resp = responses[callIndex++]
@@ -21,7 +23,7 @@ function mockFetchSequence(responses: Array<{ ok: boolean; status: number; body?
 }
 
 // Speed up tests by eliminating real sleep
-jest.spyOn(global, 'setTimeout').mockImplementation((fn: Function) => {
+jest.spyOn(global, 'setTimeout').mockImplementation((fn: () => void) => {
   fn()
   return 0 as unknown as NodeJS.Timeout
 })
@@ -69,9 +71,7 @@ describe('retry logic', () => {
   })
 
   test('does NOT retry on 401', async () => {
-    const mock = mockFetchSequence([
-      { ok: false, status: 401, body: { detail: 'Unauthorized' } },
-    ])
+    const mock = mockFetchSequence([{ ok: false, status: 401, body: { detail: 'Unauthorized' } }])
     global.fetch = mock
 
     const client = new Blindfold({ apiKey: 'test', maxRetries: 2, retryDelay: 0.001 })
@@ -80,9 +80,7 @@ describe('retry logic', () => {
   })
 
   test('does NOT retry on 400', async () => {
-    const mock = mockFetchSequence([
-      { ok: false, status: 400, body: { detail: 'Bad request' } },
-    ])
+    const mock = mockFetchSequence([{ ok: false, status: 400, body: { detail: 'Bad request' } }])
     global.fetch = mock
 
     const client = new Blindfold({ apiKey: 'test', maxRetries: 2, retryDelay: 0.001 })
@@ -104,9 +102,7 @@ describe('retry logic', () => {
   })
 
   test('no retry when maxRetries=0', async () => {
-    const mock = mockFetchSequence([
-      new TypeError('fetch failed'),
-    ])
+    const mock = mockFetchSequence([new TypeError('fetch failed')])
     global.fetch = mock
 
     const client = new Blindfold({ apiKey: 'test', maxRetries: 0, retryDelay: 0.001 })
@@ -130,9 +126,7 @@ describe('retry logic', () => {
   })
 
   test('default config has maxRetries=2 and retryDelay=0.5', async () => {
-    const mock = mockFetchSequence([
-      { ok: true, status: 200, body: SUCCESS_BODY },
-    ])
+    const mock = mockFetchSequence([{ ok: true, status: 200, body: SUCCESS_BODY }])
     global.fetch = mock
 
     // Just verify defaults don't break existing behavior

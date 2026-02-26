@@ -6,10 +6,8 @@ import { registerRegion } from '../../registry'
 
 class ZipCodeDetector extends RegexDetector {
   entityType = EntityType.ZIP_CODE
-  score = 0.70
-  contextKeywords = [
-    'zip', 'postal', 'zip code', 'zipcode', 'postal code',
-  ]
+  score = 0.7
+  contextKeywords = ['zip', 'postal', 'zip code', 'zipcode', 'postal code']
   contextRequired = true
   contextWindow = 50
 

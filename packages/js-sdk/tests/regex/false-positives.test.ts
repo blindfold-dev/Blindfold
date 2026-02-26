@@ -9,7 +9,9 @@ describe('False Positives', () => {
   })
 
   test('v prefix should not match as IP', () => {
-    const ip = scanner.detect('Running v1.2.3.4 of the app').filter((m) => m.entityType === 'IP Address')
+    const ip = scanner
+      .detect('Running v1.2.3.4 of the app')
+      .filter((m) => m.entityType === 'IP Address')
     expect(ip.length).toBe(0)
   })
 

@@ -9,8 +9,12 @@ class DeTaxIdDetector extends RegexDetector {
   entityType = EntityType.DE_TAX_ID
   score = 0.85
   contextKeywords = [
-    'steuer', 'tax id', 'steueridentifikationsnummer', 'tin',
-    'identifikationsnummer', 'steuernummer',
+    'steuer',
+    'tax id',
+    'steueridentifikationsnummer',
+    'tin',
+    'identifikationsnummer',
+    'steuernummer',
   ]
   contextRequired = false
 

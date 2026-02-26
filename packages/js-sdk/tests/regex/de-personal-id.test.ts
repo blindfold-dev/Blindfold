@@ -9,7 +9,7 @@ describe('German Personal ID Detection', () => {
     const m = dePersonalId(scanner.detect('Personalausweis: T220001293'))
     expect(m.length).toBe(1)
     expect(m[0].text).toBe('T220001293')
-    expect(m[0].score).toBe(0.80)
+    expect(m[0].score).toBe(0.8)
   })
 
   test('should not match without context', () => {

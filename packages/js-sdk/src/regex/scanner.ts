@@ -71,7 +71,7 @@ export class PIIScanner {
     matches.sort((a, b) => {
       if (a.start !== b.start) return a.start - b.start
       if (a.score !== b.score) return b.score - a.score
-      return (b.end - b.start) - (a.end - a.start)
+      return b.end - b.start - (a.end - a.start)
     })
     const result: PIIMatch[] = []
     let lastEnd = -1

@@ -60,7 +60,9 @@ export class Blindfold {
     if (config.region && !config.baseUrl) {
       const regionUrl = REGION_URLS[config.region]
       if (!regionUrl) {
-        throw new Error(`Invalid region '${config.region}'. Must be one of: ${Object.keys(REGION_URLS).join(', ')}`)
+        throw new Error(
+          `Invalid region '${config.region}'. Must be one of: ${Object.keys(REGION_URLS).join(', ')}`
+        )
       }
       this.baseUrl = regionUrl
     } else {
@@ -79,7 +81,7 @@ export class Blindfold {
   private getScanner(): PIIScannerType {
     if (!this._scanner) {
       // Lazy import to avoid loading regex module when using API mode
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { PIIScanner } = require('./regex') as typeof import('./regex')
       this._scanner = new PIIScanner()
     }
@@ -93,7 +95,7 @@ export class Blindfold {
         return body.retry_after * 1000
       }
     }
-    const delay = this.retryDelay * (2 ** attempt) * 1000
+    const delay = this.retryDelay * 2 ** attempt * 1000
     const jitter = delay * 0.1 * Math.random()
     return delay + jitter
   }

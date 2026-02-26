@@ -7,10 +7,8 @@ import { esNieLetter } from '../../validators'
 
 class EsNieDetector extends RegexDetector {
   entityType = EntityType.ES_NIE
-  score = 0.90
-  contextKeywords = [
-    'nie', 'extranjero', 'numero de identidad',
-  ]
+  score = 0.9
+  contextKeywords = ['nie', 'extranjero', 'numero de identidad']
   contextRequired = false
 
   pattern = /\b[XYZ]\d{7}[-\s]?[A-Z]\b/gi

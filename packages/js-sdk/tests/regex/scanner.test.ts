@@ -1,4 +1,4 @@
-import { PIIScanner, EntityType } from '../../src/regex'
+import { PIIScanner } from '../../src/regex'
 
 describe('PIIScanner detect', () => {
   const scanner = new PIIScanner({ locales: ['us', 'eu'] })

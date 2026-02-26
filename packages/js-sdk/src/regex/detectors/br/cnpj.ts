@@ -7,10 +7,8 @@ import { brCnpjChecksum } from '../../validators'
 
 class BrCnpjDetector extends RegexDetector {
   entityType = EntityType.BR_CNPJ
-  score = 0.90
-  contextKeywords = [
-    'cnpj', 'cadastro nacional',
-  ]
+  score = 0.9
+  contextKeywords = ['cnpj', 'cadastro nacional']
   contextRequired = false
 
   pattern = /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}[-.]?\d{2}\b/g

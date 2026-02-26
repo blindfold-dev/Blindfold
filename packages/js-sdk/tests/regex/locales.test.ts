@@ -26,13 +26,17 @@ describe('Locale Filtering', () => {
 
   test('UK locale detects NI Number', () => {
     const scanner = new PIIScanner({ locales: ['uk'] })
-    const ni = scanner.detect('NI number: AB 12 34 56 A').filter((m) => m.entityType === 'NI Number')
+    const ni = scanner
+      .detect('NI number: AB 12 34 56 A')
+      .filter((m) => m.entityType === 'NI Number')
     expect(ni.length).toBe(1)
   })
 
   test('UK locale does not detect SSN', () => {
     const scanner = new PIIScanner({ locales: ['uk'] })
-    const ssn = scanner.detect('SSN 123-45-6789').filter((m) => m.entityType === 'Social Security Number')
+    const ssn = scanner
+      .detect('SSN 123-45-6789')
+      .filter((m) => m.entityType === 'Social Security Number')
     expect(ssn.length).toBe(0)
   })
 
@@ -44,7 +48,9 @@ describe('Locale Filtering', () => {
 
   test('DE locale does not detect SSN', () => {
     const scanner = new PIIScanner({ locales: ['de'] })
-    const ssn = scanner.detect('SSN 123-45-6789').filter((m) => m.entityType === 'Social Security Number')
+    const ssn = scanner
+      .detect('SSN 123-45-6789')
+      .filter((m) => m.entityType === 'Social Security Number')
     expect(ssn.length).toBe(0)
   })
 
@@ -62,13 +68,17 @@ describe('Locale Filtering', () => {
 
   test('DE locale does not detect French National ID', () => {
     const scanner = new PIIScanner({ locales: ['de'] })
-    const fr = scanner.detect('NIR: 185057800608491').filter((m) => m.entityType === 'French National ID')
+    const fr = scanner
+      .detect('NIR: 185057800608491')
+      .filter((m) => m.entityType === 'French National ID')
     expect(fr.length).toBe(0)
   })
 
   test('FR locale does not detect German Tax ID', () => {
     const scanner = new PIIScanner({ locales: ['fr'] })
-    const de = scanner.detect('Steuer-ID: 65929970489').filter((m) => m.entityType === 'German Tax ID')
+    const de = scanner
+      .detect('Steuer-ID: 65929970489')
+      .filter((m) => m.entityType === 'German Tax ID')
     expect(de.length).toBe(0)
   })
 })

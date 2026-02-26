@@ -8,9 +8,7 @@ import { plPeselChecksum } from '../../validators'
 class PlPeselDetector extends RegexDetector {
   entityType = EntityType.PL_PESEL
   score = 0.85
-  contextKeywords = [
-    'pesel',
-  ]
+  contextKeywords = ['pesel']
   contextRequired = false
 
   pattern = /\b\d{11}\b/g

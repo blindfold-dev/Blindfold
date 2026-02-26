@@ -7,10 +7,8 @@ import { brCpfChecksum } from '../../validators'
 
 class BrCpfDetector extends RegexDetector {
   entityType = EntityType.BR_CPF
-  score = 0.90
-  contextKeywords = [
-    'cpf', 'cadastro de pessoa',
-  ]
+  score = 0.9
+  contextKeywords = ['cpf', 'cadastro de pessoa']
   contextRequired = false
 
   pattern = /\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g

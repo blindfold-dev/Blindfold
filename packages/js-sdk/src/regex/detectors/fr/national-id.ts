@@ -7,10 +7,8 @@ import { frNirChecksum } from '../../validators'
 
 class FrNationalIdDetector extends RegexDetector {
   entityType = EntityType.FR_NATIONAL_ID
-  score = 0.90
-  contextKeywords = [
-    'nir', 'securite sociale', 'social security', 'numero national', 'insee',
-  ]
+  score = 0.9
+  contextKeywords = ['nir', 'securite sociale', 'social security', 'numero national', 'insee']
   contextRequired = false
 
   pattern = /\b[12]\s?\d{2}\s?(?:0[1-9]|1[0-2]|[2-9]\d)\s?\d{2,3}\s?\d{3}\s?\d{3}\s?\d{2}\b/g

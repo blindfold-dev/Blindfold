@@ -235,7 +235,7 @@ export interface EncryptResponse {
  */
 export interface BatchResponse {
   /** Array of individual results (or { error: string } for failed items) */
-  results: (Record<string, unknown>)[]
+  results: Record<string, unknown>[]
   /** Total number of texts submitted */
   total: number
   /** Number of texts processed successfully */

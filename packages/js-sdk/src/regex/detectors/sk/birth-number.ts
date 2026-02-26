@@ -8,9 +8,7 @@ import { skBirthNumberValid } from '../../validators'
 class SkBirthNumberDetector extends RegexDetector {
   entityType = EntityType.SK_BIRTH_NUMBER
   score = 0.85
-  contextKeywords = [
-    'rodne cislo', 'birth number', 'rc', 'rodn\u00e9 \u010d\u00edslo',
-  ]
+  contextKeywords = ['rodne cislo', 'birth number', 'rc', 'rodn\u00e9 \u010d\u00edslo']
   contextRequired = true
 
   pattern = /\b\d{6}\/?\d{3,4}\b/g

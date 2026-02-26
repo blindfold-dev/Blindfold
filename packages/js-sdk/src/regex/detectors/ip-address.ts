@@ -7,9 +7,9 @@ import { registerUniversal } from '../registry'
 const IPV4 = /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b/g
 
 const IPV6 = new RegExp(
-  '\\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\\b'
-  + '|\\b(?:[0-9a-fA-F]{1,4}:){1,7}:\\b'
-  + '|\\b::(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}\\b',
+  '\\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\\b' +
+    '|\\b(?:[0-9a-fA-F]{1,4}:){1,7}:\\b' +
+    '|\\b::(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}\\b',
   'g'
 )
 
@@ -48,7 +48,10 @@ class IpAddressDetector extends Detector {
     if (start > 0 && text[start - 1].toLowerCase() === 'v') {
       return true
     }
-    const prefix = text.slice(Math.max(0, start - 10), start).toLowerCase().trim()
+    const prefix = text
+      .slice(Math.max(0, start - 10), start)
+      .toLowerCase()
+      .trim()
     return prefix.endsWith('version')
   }
 }
