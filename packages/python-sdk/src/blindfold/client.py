@@ -52,6 +52,8 @@ class Blindfold:
         retry_delay: float = 0.5,
         region: Optional[str] = None,
         mode: Optional[str] = None,
+        locales: Optional[List[str]] = None,
+        entities: Optional[List[str]] = None,
     ) -> None:
         """
         Initialize Blindfold client.
@@ -67,8 +69,16 @@ class Blindfold:
             region: Optional region for data residency ("eu" or "us"). Overrides base_url if base_url is default.
             mode: Optional mode override. Set to ``"local"`` to force local
                 regex detection even when an API key is present.
+            locales: Optional locale codes for the local regex scanner
+                (default: ``["us"]``). Example: ``["us", "eu", "cz"]``.
+                Only used in local mode.
+            entities: Optional entity types to restrict the local regex
+                scanner. Example: ``["Email Address", "Czech Birth Number"]``.
+                Only used in local mode.
         """
         self.api_key = api_key
+        self._locales = locales
+        self._entities = entities
         if region and base_url == DEFAULT_BASE_URL:
             region_lower = region.lower()
             if region_lower not in REGION_URLS:
@@ -95,8 +105,11 @@ class Blindfold:
     def _get_scanner(self) -> "PIIScanner":
         """Lazy-init the local PII scanner."""
         if self._scanner is None:
-            from .regex import PIIScanner
-            self._scanner = PIIScanner()
+            from .regex import PIIScanner, EntityType
+            entity_types = None
+            if self._entities:
+                entity_types = [EntityType(e) for e in self._entities]
+            self._scanner = PIIScanner(locales=self._locales, entities=entity_types)
         return self._scanner
 
     @property
@@ -990,8 +1003,8 @@ class AsyncBlindfold:
     Async Blindfold client for tokenization and detokenization operations.
 
     This client supports asynchronous operations using httpx.AsyncClient.
-    When no ``api_key`` is provided, all methods except ``synthesize()`` run
-    locally using the built-in regex PII scanner.
+    When no ``api_key`` is provided, all methods run locally using the
+    built-in regex PII scanner.
     """
 
     def __init__(
@@ -1004,13 +1017,15 @@ class AsyncBlindfold:
         retry_delay: float = 0.5,
         region: Optional[str] = None,
         mode: Optional[str] = None,
+        locales: Optional[List[str]] = None,
+        entities: Optional[List[str]] = None,
     ) -> None:
         """
         Initialize async Blindfold client.
 
         Args:
             api_key: Optional API key for authentication. When omitted,
-                detect() and redact() use the local regex scanner.
+                all methods use the local regex scanner.
             base_url: Base URL for the API (default: https://api.blindfold.dev/api/public/v1)
             timeout: Request timeout in seconds (default: 30.0)
             user_id: Optional user ID to track who is making the request
@@ -1019,8 +1034,16 @@ class AsyncBlindfold:
             region: Optional region for data residency ("eu" or "us"). Overrides base_url if base_url is default.
             mode: Optional mode override. Set to ``"local"`` to force local
                 regex detection even when an API key is present.
+            locales: Optional locale codes for the local regex scanner
+                (default: ``["us"]``). Example: ``["us", "eu", "cz"]``.
+                Only used in local mode.
+            entities: Optional entity types to restrict the local regex
+                scanner. Example: ``["Email Address", "Czech Birth Number"]``.
+                Only used in local mode.
         """
         self.api_key = api_key
+        self._locales = locales
+        self._entities = entities
         if region and base_url == DEFAULT_BASE_URL:
             region_lower = region.lower()
             if region_lower not in REGION_URLS:
@@ -1047,8 +1070,11 @@ class AsyncBlindfold:
     def _get_scanner(self) -> "PIIScanner":
         """Lazy-init the local PII scanner."""
         if self._scanner is None:
-            from .regex import PIIScanner
-            self._scanner = PIIScanner()
+            from .regex import PIIScanner, EntityType
+            entity_types = None
+            if self._entities:
+                entity_types = [EntityType(e) for e in self._entities]
+            self._scanner = PIIScanner(locales=self._locales, entities=entity_types)
         return self._scanner
 
     @property

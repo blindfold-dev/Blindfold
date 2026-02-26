@@ -16,6 +16,10 @@ export interface BlindfoldConfig {
   retryDelay?: number
   /** Set to "local" to force local regex detection even when an API key is present. */
   mode?: 'local' | 'api'
+  /** Locale codes for the local regex scanner (default: ["us"]). Example: ["us", "eu", "cz"]. Only used in local mode. */
+  locales?: string[]
+  /** Entity types to restrict the local regex scanner. Example: ["Email Address", "Czech Birth Number"]. Only used in local mode. */
+  entities?: string[]
 }
 
 /**

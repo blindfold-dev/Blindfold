@@ -1,4 +1,5 @@
-import { PIIScanner } from '../../src/regex'
+import { PIIScanner, EntityType } from '../../src/regex'
+import { Blindfold } from '../../src/client'
 
 describe('PIIScanner detect', () => {
   const scanner = new PIIScanner({ locales: ['us', 'eu'] })
@@ -232,5 +233,37 @@ describe('PIIScanner encrypt', () => {
     const result = scanner.encrypt('Normal text.', key)
     expect(result.text).toBe('Normal text.')
     expect(result.matches).toEqual([])
+  })
+})
+
+describe('Blindfold client locales and entities', () => {
+  test('should pass locales to scanner - CZ locale detects Czech Birth Number', async () => {
+    const client = new Blindfold({ locales: ['cz'] })
+    const result = await client.detect('Rodne cislo: 710319/2745')
+    const types = result.detected_entities.map((e) => e.type)
+    expect(types).toContain('Czech Birth Number')
+  })
+
+  test('should not detect CZ entities with only US locale', async () => {
+    const client = new Blindfold({ locales: ['us'] })
+    const result = await client.detect('Rodne cislo: 710319/2745')
+    const types = result.detected_entities.map((e) => e.type)
+    expect(types).not.toContain('Czech Birth Number')
+  })
+
+  test('should filter entities - only detect emails', async () => {
+    const client = new Blindfold({ entities: ['Email Address'] })
+    const result = await client.detect('Email john@acme.com, SSN 123-45-6789')
+    const types = result.detected_entities.map((e) => e.type)
+    expect(types).toContain('Email Address')
+    expect(types).not.toContain('Social Security Number')
+  })
+
+  test('should combine locales and entities', async () => {
+    const client = new Blindfold({ locales: ['cz'], entities: ['Czech Birth Number'] })
+    const result = await client.detect('Rodne cislo: 710319/2745, email john@acme.com')
+    const types = result.detected_entities.map((e) => e.type)
+    expect(types).toContain('Czech Birth Number')
+    expect(types).not.toContain('Email Address')
   })
 })

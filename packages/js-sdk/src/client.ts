@@ -48,6 +48,8 @@ export class Blindfold {
   private maxRetries: number
   private retryDelay: number
   private mode?: string
+  private locales?: string[]
+  private entities?: string[]
   private _scanner?: PIIScannerType
 
   /**
@@ -57,6 +59,8 @@ export class Blindfold {
   constructor(config: BlindfoldConfig = {}) {
     this.apiKey = config.apiKey
     this.mode = config.mode
+    this.locales = config.locales
+    this.entities = config.entities
     if (config.region && !config.baseUrl) {
       const regionUrl = REGION_URLS[config.region]
       if (!regionUrl) {
@@ -82,8 +86,15 @@ export class Blindfold {
     if (!this._scanner) {
       // Lazy import to avoid loading regex module when using API mode
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { PIIScanner } = require('./regex') as typeof import('./regex')
-      this._scanner = new PIIScanner()
+      const { PIIScanner, EntityType } = require('./regex') as typeof import('./regex')
+      const opts: { locales?: string[]; entities?: EntityType[] } = {}
+      if (this.locales) {
+        opts.locales = this.locales
+      }
+      if (this.entities) {
+        opts.entities = this.entities as unknown as EntityType[]
+      }
+      this._scanner = new PIIScanner(opts)
     }
     return this._scanner
   }

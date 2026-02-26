@@ -250,3 +250,35 @@ class TestBlindfoldLocalEncrypt:
         client = Blindfold()
         with pytest.raises(ValueError):
             client.encrypt("Email john@acme.com")
+
+
+class TestBlindfoldLocalesAndEntities:
+    def test_cz_locale_detects_czech_birth_number(self):
+        from blindfold.client import Blindfold
+        client = Blindfold(locales=["cz"])
+        result = client.detect("Rodne cislo: 710319/2745")
+        types = [e.type for e in result.detected_entities]
+        assert "Czech Birth Number" in types
+
+    def test_us_locale_does_not_detect_czech_birth_number(self):
+        from blindfold.client import Blindfold
+        client = Blindfold(locales=["us"])
+        result = client.detect("Rodne cislo: 710319/2745")
+        types = [e.type for e in result.detected_entities]
+        assert "Czech Birth Number" not in types
+
+    def test_entities_filter_only_emails(self):
+        from blindfold.client import Blindfold
+        client = Blindfold(entities=["Email Address"])
+        result = client.detect("Email john@acme.com, SSN 123-45-6789")
+        types = [e.type for e in result.detected_entities]
+        assert "Email Address" in types
+        assert "Social Security Number" not in types
+
+    def test_locales_and_entities_combined(self):
+        from blindfold.client import Blindfold
+        client = Blindfold(locales=["cz"], entities=["Czech Birth Number"])
+        result = client.detect("Rodne cislo: 710319/2745, email john@acme.com")
+        types = [e.type for e in result.detected_entities]
+        assert "Czech Birth Number" in types
+        assert "Email Address" not in types
