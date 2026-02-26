@@ -30,7 +30,7 @@ for entity in result.detected_entities:
 # Redact PII locally
 result = client.redact("Email john@acme.com, SSN 123-45-6789")
 print(result.text)
-# "Email [EMAIL_ADDRESS], SSN [SOCIAL_SECURITY_NUMBER]"
+# "Email <Email Address>, SSN <Social Security Number>"
 ```
 
 ### 3. Upgrade to Blindfold API (optional)
@@ -226,7 +226,7 @@ for match in matches:
 # Redact PII
 redacted_text, matches = scanner.redact("SSN 123-45-6789, CC 4532015112830366")
 print(redacted_text)
-# "SSN [SOCIAL_SECURITY_NUMBER], CC [CREDIT_CARD_NUMBER]"
+# "SSN <Social Security Number>, CC <Credit Card Number>"
 ```
 
 ### Multi-locale support

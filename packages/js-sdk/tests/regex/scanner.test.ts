@@ -42,22 +42,22 @@ describe('PIIScanner detect', () => {
 describe('PIIScanner redact', () => {
   const scanner = new PIIScanner({ locales: ['us', 'eu'] })
 
-  test('should redact email with label', () => {
+  test('should redact email with entity name placeholder', () => {
     const [redacted] = scanner.redact('Contact support@example.com for details.')
-    expect(redacted).toContain('[EMAIL_ADDRESS]')
+    expect(redacted).toContain('<Email Address>')
     expect(redacted).not.toContain('support@example.com')
   })
 
-  test('should redact SSN with label', () => {
+  test('should redact SSN with entity name placeholder', () => {
     const [redacted] = scanner.redact('SSN: 123-45-6789')
-    expect(redacted).toContain('[SSN]')
+    expect(redacted).toContain('<Social Security Number>')
     expect(redacted).not.toContain('123-45-6789')
   })
 
   test('should redact multiple entities', () => {
     const [redacted, matches] = scanner.redact('Email john@acme.com, SSN 123-45-6789')
-    expect(redacted).toContain('[EMAIL_ADDRESS]')
-    expect(redacted).toContain('[SSN]')
+    expect(redacted).toContain('<Email Address>')
+    expect(redacted).toContain('<Social Security Number>')
     expect(matches.length).toBeGreaterThanOrEqual(2)
   })
 
@@ -66,5 +66,132 @@ describe('PIIScanner redact', () => {
     const [redacted, matches] = scanner.redact(text)
     expect(redacted).toBe(text)
     expect(matches).toEqual([])
+  })
+})
+
+describe('PIIScanner tokenize', () => {
+  const scanner = new PIIScanner({ locales: ['us', 'eu'] })
+
+  test('should tokenize email with numbered token', () => {
+    const result = scanner.tokenize('Contact support@example.com for details.')
+    expect(result.text).toContain('<Email Address_1>')
+    expect(result.text).not.toContain('support@example.com')
+    expect(result.mapping['<Email Address_1>']).toBe('support@example.com')
+    expect(result.matches.length).toBe(1)
+  })
+
+  test('should tokenize multiple same-type entities with counters', () => {
+    const result = scanner.tokenize('Email john@acme.com and jane@acme.com')
+    expect(result.text).toContain('<Email Address_1>')
+    expect(result.text).toContain('<Email Address_2>')
+    expect(result.mapping['<Email Address_1>']).toBe('john@acme.com')
+    expect(result.mapping['<Email Address_2>']).toBe('jane@acme.com')
+  })
+
+  test('should tokenize different entity types independently', () => {
+    const result = scanner.tokenize('Email john@acme.com, SSN 123-45-6789')
+    expect(result.text).toContain('<Email Address_1>')
+    expect(result.text).toContain('<Social Security Number_1>')
+    expect(Object.keys(result.mapping).length).toBeGreaterThanOrEqual(2)
+  })
+
+  test('should return original text when no PII', () => {
+    const result = scanner.tokenize('This is normal text.')
+    expect(result.text).toBe('This is normal text.')
+    expect(result.mapping).toEqual({})
+    expect(result.matches).toEqual([])
+  })
+})
+
+describe('PIIScanner mask', () => {
+  const scanner = new PIIScanner({ locales: ['us', 'eu'] })
+
+  test('should mask email showing first 3 chars', () => {
+    const result = scanner.mask('Contact support@example.com for details.')
+    expect(result.text).not.toContain('support@example.com')
+    // "sup" visible, rest masked
+    expect(result.text).toContain('sup')
+    expect(result.text).toContain('*')
+    expect(result.matches.length).toBe(1)
+  })
+
+  test('should mask from end', () => {
+    const result = scanner.mask('SSN: 123-45-6789', 4, true)
+    expect(result.text).not.toContain('123-45-6789')
+    // last 4 chars "6789" visible
+    expect(result.text).toContain('6789')
+  })
+
+  test('should use custom masking char', () => {
+    const result = scanner.mask('Contact support@example.com', 3, false, '#')
+    expect(result.text).toContain('#')
+    expect(result.text).not.toContain('*')
+  })
+
+  test('should return original text when no PII', () => {
+    const result = scanner.mask('No PII here.')
+    expect(result.text).toBe('No PII here.')
+    expect(result.matches).toEqual([])
+  })
+})
+
+describe('PIIScanner hash', () => {
+  const scanner = new PIIScanner({ locales: ['us', 'eu'] })
+
+  test('should hash email with default settings', () => {
+    const result = scanner.hash('Contact support@example.com for details.')
+    expect(result.text).not.toContain('support@example.com')
+    expect(result.text).toContain('HASH_')
+    expect(result.matches.length).toBe(1)
+  })
+
+  test('should produce deterministic hashes', () => {
+    const r1 = scanner.hash('Email support@example.com')
+    const r2 = scanner.hash('Email support@example.com')
+    expect(r1.text).toBe(r2.text)
+  })
+
+  test('should use custom prefix and length', () => {
+    const result = scanner.hash('Email support@example.com', 'sha256', 'H_', 8)
+    expect(result.text).toContain('H_')
+    // H_ + 8 hex chars = 10 chars total for the replacement
+    const match = result.text.match(/H_[0-9a-f]{8}/)
+    expect(match).not.toBeNull()
+  })
+
+  test('should return original text when no PII', () => {
+    const result = scanner.hash('Normal text.')
+    expect(result.text).toBe('Normal text.')
+    expect(result.matches).toEqual([])
+  })
+})
+
+describe('PIIScanner encrypt', () => {
+  const scanner = new PIIScanner({ locales: ['us', 'eu'] })
+  const key = 'my-secret-key-1234567890'
+
+  test('should encrypt email', () => {
+    const result = scanner.encrypt('Contact support@example.com for details.', key)
+    expect(result.text).not.toContain('support@example.com')
+    expect(result.matches.length).toBe(1)
+    // Encrypted output should be base64
+    const encrypted = result.text.replace('Contact ', '').replace(' for details.', '')
+    expect(() => Buffer.from(encrypted, 'base64')).not.toThrow()
+  })
+
+  test('should produce different ciphertext each call (random IV)', () => {
+    const r1 = scanner.encrypt('Email support@example.com', key)
+    const r2 = scanner.encrypt('Email support@example.com', key)
+    expect(r1.text).not.toBe(r2.text)
+  })
+
+  test('should throw on short key', () => {
+    expect(() => scanner.encrypt('Email support@example.com', 'short')).toThrow()
+  })
+
+  test('should return original text when no PII', () => {
+    const result = scanner.encrypt('Normal text.', key)
+    expect(result.text).toBe('Normal text.')
+    expect(result.matches).toEqual([])
   })
 })

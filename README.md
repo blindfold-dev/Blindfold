@@ -31,7 +31,7 @@ console.log(result.detected_entities)
 
 const redacted = await client.redact("Email john@acme.com, SSN 123-45-6789")
 console.log(redacted.text)
-// "Email [EMAIL_ADDRESS], SSN [SOCIAL_SECURITY_NUMBER]"
+// "Email <Email Address>, SSN <Social Security Number>"
 ```
 
 Python
@@ -46,7 +46,7 @@ print(result.detected_entities)
 
 result = client.redact("Email john@acme.com, SSN 123-45-6789")
 print(result.text)
-# "Email [EMAIL_ADDRESS], SSN [SOCIAL_SECURITY_NUMBER]"
+# "Email <Email Address>, SSN <Social Security Number>"
 ```
 
 ### 3. Upgrade to Blindfold API (optional)

@@ -1,6 +1,7 @@
 // PIIScanner: orchestrates detectors, deduplicates results, produces output
 
-import { EntityType, PIIMatch, REDACTION_LABELS } from './entities'
+import * as crypto from 'crypto'
+import { EntityType, PIIMatch } from './entities'
 import { DetectorRegistry } from './registry'
 
 // Force import of all detectors so they auto-register
@@ -11,6 +12,27 @@ export interface PIIScannerOptions {
   locales?: string[]
   /** Optional list of EntityType values to restrict detection. */
   entities?: EntityType[]
+}
+
+export interface TokenizeResult {
+  text: string
+  mapping: Record<string, string>
+  matches: PIIMatch[]
+}
+
+export interface MaskResult {
+  text: string
+  matches: PIIMatch[]
+}
+
+export interface HashResult {
+  text: string
+  matches: PIIMatch[]
+}
+
+export interface EncryptResult {
+  text: string
+  matches: PIIMatch[]
 }
 
 /**
@@ -42,7 +64,7 @@ export class PIIScanner {
   }
 
   /**
-   * Detect and replace PII with [LABEL] placeholders.
+   * Detect and replace PII with `<Entity Name>` placeholders.
    * Returns a tuple of [redactedText, detectedMatches].
    */
   redact(text: string): [string, PIIMatch[]] {
@@ -55,11 +77,134 @@ export class PIIScanner {
     const sortedMatches = [...matches].sort((a, b) => b.start - a.start)
     let result = text
     for (const m of sortedMatches) {
-      const label = REDACTION_LABELS[m.entityType] ?? m.entityType.toUpperCase()
-      result = result.slice(0, m.start) + '[' + label + ']' + result.slice(m.end)
+      result = result.slice(0, m.start) + '<' + m.entityType + '>' + result.slice(m.end)
     }
 
     return [result, matches]
+  }
+
+  /**
+   * Detect PII and replace with numbered tokens like `<Email Address_1>`.
+   * Returns tokenized text, a mapping from tokens to original values, and matches.
+   */
+  tokenize(text: string): TokenizeResult {
+    const matches = this.detect(text)
+    if (matches.length === 0) {
+      return { text, mapping: {}, matches: [] }
+    }
+
+    // Assign per-type counters in reading order (ascending start position)
+    const sortedAsc = [...matches].sort((a, b) => a.start - b.start)
+    const counters: Record<string, number> = {}
+    const tokenMap: Map<PIIMatch, string> = new Map()
+    const mapping: Record<string, string> = {}
+
+    for (const m of sortedAsc) {
+      const count = (counters[m.entityType] ?? 0) + 1
+      counters[m.entityType] = count
+      const token = `<${m.entityType}_${count}>`
+      tokenMap.set(m, token)
+      mapping[token] = m.text
+    }
+
+    // Replace in descending position order
+    const sortedDesc = [...matches].sort((a, b) => b.start - a.start)
+    let result = text
+    for (const m of sortedDesc) {
+      const token = tokenMap.get(m)!
+      result = result.slice(0, m.start) + token + result.slice(m.end)
+    }
+
+    return { text: result, mapping, matches }
+  }
+
+  /**
+   * Detect PII and partially mask each match.
+   */
+  mask(
+    text: string,
+    charsToShow: number = 3,
+    fromEnd: boolean = false,
+    maskingChar: string = '*'
+  ): MaskResult {
+    const matches = this.detect(text)
+    if (matches.length === 0) {
+      return { text, matches: [] }
+    }
+
+    const sortedMatches = [...matches].sort((a, b) => b.start - a.start)
+    let result = text
+    for (const m of sortedMatches) {
+      const original = m.text
+      const show = Math.min(charsToShow, original.length)
+      const maskLen = original.length - show
+      let masked: string
+      if (fromEnd) {
+        masked = maskingChar.repeat(maskLen) + original.slice(maskLen)
+      } else {
+        masked = original.slice(0, show) + maskingChar.repeat(maskLen)
+      }
+      result = result.slice(0, m.start) + masked + result.slice(m.end)
+    }
+
+    return { text: result, matches }
+  }
+
+  /**
+   * Detect PII and replace each match with a deterministic hash.
+   */
+  hash(
+    text: string,
+    hashType: string = 'sha256',
+    hashPrefix: string = 'HASH_',
+    hashLength: number = 16
+  ): HashResult {
+    const matches = this.detect(text)
+    if (matches.length === 0) {
+      return { text, matches: [] }
+    }
+
+    const sortedMatches = [...matches].sort((a, b) => b.start - a.start)
+    let result = text
+    for (const m of sortedMatches) {
+      const digest = crypto.createHash(hashType).update(m.text).digest('hex')
+      const truncated = digest.slice(0, hashLength)
+      const replacement = hashPrefix + truncated
+      result = result.slice(0, m.start) + replacement + result.slice(m.end)
+    }
+
+    return { text: result, matches }
+  }
+
+  /**
+   * Detect PII and encrypt each match with AES-256-CBC.
+   * @param encryptionKey - Required, minimum 16 characters.
+   */
+  encrypt(text: string, encryptionKey: string): EncryptResult {
+    if (!encryptionKey || encryptionKey.length < 16) {
+      throw new Error('encryptionKey is required and must be at least 16 characters for local encryption')
+    }
+
+    const matches = this.detect(text)
+    if (matches.length === 0) {
+      return { text, matches: [] }
+    }
+
+    // Derive a 32-byte key from the provided key using SHA-256
+    const derivedKey = crypto.createHash('sha256').update(encryptionKey).digest()
+
+    const sortedMatches = [...matches].sort((a, b) => b.start - a.start)
+    let result = text
+    for (const m of sortedMatches) {
+      const iv = crypto.randomBytes(16)
+      const cipher = crypto.createCipheriv('aes-256-cbc', derivedKey, iv)
+      const encrypted = Buffer.concat([cipher.update(m.text, 'utf8'), cipher.final()])
+      const combined = Buffer.concat([iv, encrypted])
+      const replacement = combined.toString('base64')
+      result = result.slice(0, m.start) + replacement + result.slice(m.end)
+    }
+
+    return { text: result, matches }
   }
 
   /** Remove overlapping matches, preferring higher score then longer span. */

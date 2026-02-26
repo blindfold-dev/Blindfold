@@ -37,9 +37,9 @@ function sleep(ms: number): Promise<void> {
 /**
  * Blindfold client for tokenization and detokenization.
  *
- * When no `apiKey` is provided, `detect()` and `redact()` run locally
- * using the built-in regex PII scanner.  Set `mode: "local"` to force
- * local mode even when an API key is present.
+ * When no `apiKey` is provided, all methods except `synthesize()` run
+ * locally using the built-in regex PII scanner.  Set `mode: "local"` to
+ * force local mode even when an API key is present.
  */
 export class Blindfold {
   private apiKey?: string
@@ -207,10 +207,33 @@ export class Blindfold {
    * @returns Promise with tokenized text and mapping
    */
   async tokenize(text: string, config?: TokenizeConfig): Promise<TokenizeResponse> {
+    if (this.useLocal) {
+      return this.tokenizeLocal(text)
+    }
     return this.request<TokenizeResponse>('/tokenize', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private tokenizeLocal(text: string): TokenizeResponse {
+    const scanner = this.getScanner()
+    const result = scanner.tokenize(text)
+
+    const detected: DetectedEntity[] = result.matches.map((m) => ({
+      type: m.entityType,
+      text: m.text,
+      start: m.start,
+      end: m.end,
+      score: m.score,
+    }))
+
+    return {
+      text: result.text,
+      mapping: result.mapping,
+      detected_entities: detected,
+      entities_count: detected.length,
+    }
   }
 
   /**
@@ -298,7 +321,7 @@ export class Blindfold {
    * WARNING: Redaction is irreversible - original data cannot be restored!
    *
    * When no API key is set (or `mode: "local"`), redaction runs locally
-   * using the built-in regex scanner, replacing PII with `[LABEL]` placeholders.
+   * using the built-in regex scanner, replacing PII with `<Entity Name>` placeholders.
    *
    * @param text - Text to redact
    * @param config - Optional configuration (masking_char, entities)
@@ -345,10 +368,37 @@ export class Blindfold {
    * @returns Promise with masked text and detected entities
    */
   async mask(text: string, config?: MaskConfig): Promise<MaskResponse> {
+    if (this.useLocal) {
+      return this.maskLocal(text, config)
+    }
     return this.request<MaskResponse>('/mask', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private maskLocal(text: string, config?: MaskConfig): MaskResponse {
+    const scanner = this.getScanner()
+    const result = scanner.mask(
+      text,
+      config?.chars_to_show ?? 3,
+      config?.from_end ?? false,
+      config?.masking_char ?? '*'
+    )
+
+    const detected: DetectedEntity[] = result.matches.map((m) => ({
+      type: m.entityType,
+      text: m.text,
+      start: m.start,
+      end: m.end,
+      score: m.score,
+    }))
+
+    return {
+      text: result.text,
+      detected_entities: detected,
+      entities_count: detected.length,
+    }
   }
 
   /**
@@ -373,10 +423,37 @@ export class Blindfold {
    * @returns Promise with hashed text and detected entities
    */
   async hash(text: string, config?: HashConfig): Promise<HashResponse> {
+    if (this.useLocal) {
+      return this.hashLocal(text, config)
+    }
     return this.request<HashResponse>('/hash', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private hashLocal(text: string, config?: HashConfig): HashResponse {
+    const scanner = this.getScanner()
+    const result = scanner.hash(
+      text,
+      config?.hash_type ?? 'sha256',
+      config?.hash_prefix ?? 'HASH_',
+      config?.hash_length ?? 16
+    )
+
+    const detected: DetectedEntity[] = result.matches.map((m) => ({
+      type: m.entityType,
+      text: m.text,
+      start: m.start,
+      end: m.end,
+      score: m.score,
+    }))
+
+    return {
+      text: result.text,
+      detected_entities: detected,
+      entities_count: detected.length,
+    }
   }
 
   /**
@@ -387,10 +464,35 @@ export class Blindfold {
    * @returns Promise with encrypted text and detected entities
    */
   async encrypt(text: string, config?: EncryptConfig): Promise<EncryptResponse> {
+    if (this.useLocal) {
+      return this.encryptLocal(text, config)
+    }
     return this.request<EncryptResponse>('/encrypt', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private encryptLocal(text: string, config?: EncryptConfig): EncryptResponse {
+    if (!config?.encryption_key) {
+      throw new Error('encryption_key is required for local encryption mode')
+    }
+    const scanner = this.getScanner()
+    const result = scanner.encrypt(text, config.encryption_key)
+
+    const detected: DetectedEntity[] = result.matches.map((m) => ({
+      type: m.entityType,
+      text: m.text,
+      start: m.start,
+      end: m.end,
+      score: m.score,
+    }))
+
+    return {
+      text: result.text,
+      detected_entities: detected,
+      entities_count: detected.length,
+    }
   }
 
   // ===== Batch methods =====
