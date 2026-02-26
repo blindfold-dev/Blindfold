@@ -4,7 +4,7 @@ The official JavaScript/TypeScript SDK for Blindfold - The Privacy API for AI.
 
 Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending it to LLMs or third-party services.
 
-**Works offline with zero dependencies** - Detect and redact 80+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
+**Works offline with zero dependencies** - Detect, redact, synthesize, and more across 80+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
 
 ## How to use it
 
@@ -164,16 +164,20 @@ const response = await client.hash(
 
 ### Synthesize
 
-Replace real data with realistic fake data.
+Replace real data with realistic fake data. Works locally with format-preserving generation (no API key needed), or with NLP-powered synthesis via the API.
 
 ```typescript
+// Works offline - no API key required
+const client = new Blindfold()
+const response = await client.synthesize("Email john@acme.com, SSN 123-45-6789")
+console.log(response.text)
+// "Email user3a9f1b2c@example.com, SSN 847-29-3156" (format-preserving)
+
+// With API key - NLP-powered synthesis (names, addresses, etc.)
 const response = await client.synthesize(
   "John lives in New York",
-  {
-    language: 'en'
-  }
+  { language: 'en' }
 );
-
 console.log(response.text);
 // "Michael lives in Boston" (example)
 ```

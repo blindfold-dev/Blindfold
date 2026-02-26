@@ -24,12 +24,12 @@ npx tsx examples/basic-tokenization.ts
 
 ## Available Examples
 
-### 1. Offline Detokenization (`offline-detokenization.ts`) ⭐️ **Start Here!**
-Demonstrates client-side detokenization without needing an API key:
+### 1. Offline Operations (`offline-detokenization.ts`) ⭐️ **Start Here!**
+Demonstrates client-side operations without needing an API key:
 - Works completely offline
 - No API key required
 - Fast and secure
-- Multiple practical examples
+- Detokenization and synthesis examples
 
 **Run:**
 ```bash

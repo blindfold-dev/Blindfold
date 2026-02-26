@@ -1,13 +1,13 @@
 /**
- * Offline Detokenization Example
+ * Offline Operations Example
  *
- * This example demonstrates client-side detokenization which:
- * - Works without an API key
- * - Works offline (no network required)
- * - Is fast (no API latency)
- * - Is secure (data never leaves your machine)
+ * This example demonstrates client-side operations which:
+ * - Work without an API key
+ * - Work offline (no network required)
+ * - Are fast (no API latency)
+ * - Are secure (data never leaves your machine)
  *
- * This is useful for testing and understanding how detokenization works.
+ * Includes: detokenization and synthesis (format-preserving fake data).
  */
 
 import { Blindfold } from '../src/index'
@@ -93,6 +93,24 @@ function main() {
   const detokenized = client.detokenize(llmResponse, mapping4)
   console.log('LLM Response (to user):', detokenized.text)
   console.log('Replacements made:', detokenized.replacements_made)
+  console.log()
+
+  // Example 5: Offline Synthesis (format-preserving fake data)
+  console.log('Example 5: Offline Synthesis')
+  console.log('-'.repeat(60))
+  console.log('Replace PII with realistic fake data - no API key needed!')
+  console.log()
+
+  const textToSynthesize = 'Contact support@acme.com, SSN 123-45-6789, IP 192.168.1.100'
+  console.log('Original:', textToSynthesize)
+
+  const synth1 = await client.synthesize(textToSynthesize)
+  console.log('Synth #1:', synth1.text)
+  console.log(`Entities found: ${synth1.entities_count}`)
+
+  const synth2 = await client.synthesize(textToSynthesize)
+  console.log('Synth #2:', synth2.text)
+  console.log('(Each call produces different fake data)')
   console.log()
 
   // Performance demo

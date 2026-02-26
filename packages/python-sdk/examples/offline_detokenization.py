@@ -1,13 +1,13 @@
 """
-Offline Detokenization Example
+Offline Operations Example
 
-This example demonstrates client-side detokenization which:
-- Works without an API key
-- Works offline (no network required)
-- Is fast (no API latency)
-- Is secure (data never leaves your machine)
+This example demonstrates client-side operations which:
+- Work without an API key
+- Work offline (no network required)
+- Are fast (no API latency)
+- Are secure (data never leaves your machine)
 
-This is useful for testing and understanding how detokenization works.
+Includes: detokenization and synthesis (format-preserving fake data).
 """
 
 import sys
@@ -104,6 +104,24 @@ def main():
     detokenized = client.detokenize(llm_response, mapping4)
     print(f"LLM Response (to user): {detokenized.text}")
     print(f"Replacements made: {detokenized.replacements_made}")
+    print()
+
+    # Example 5: Offline Synthesis (format-preserving fake data)
+    print("Example 5: Offline Synthesis")
+    print("-" * 60)
+    print("Replace PII with realistic fake data - no API key needed!")
+    print()
+
+    text_to_synthesize = "Contact support@acme.com, SSN 123-45-6789, IP 192.168.1.100"
+    print(f"Original: {text_to_synthesize}")
+
+    synth1 = client.synthesize(text_to_synthesize)
+    print(f"Synth #1: {synth1.text}")
+    print(f"Entities found: {synth1.entities_count}")
+
+    synth2 = client.synthesize(text_to_synthesize)
+    print(f"Synth #2: {synth2.text}")
+    print("(Each call produces different fake data)")
     print()
 
     # Performance demo

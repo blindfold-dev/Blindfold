@@ -20,12 +20,12 @@ python examples/offline_detokenization.py
 
 ## Available Examples
 
-### 1. Offline Detokenization (`offline_detokenization.py`) ⭐️ **Start Here!**
-Demonstrates client-side detokenization without needing an API key:
+### 1. Offline Operations (`offline_detokenization.py`) ⭐️ **Start Here!**
+Demonstrates client-side operations without needing an API key:
 - Works completely offline
 - No API key required
-- Fast and secure (0.14ms for 100 tokens)
-- Multiple practical examples
+- Fast and secure
+- Detokenization and synthesis examples
 
 **Run:**
 ```bash
