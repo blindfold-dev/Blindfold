@@ -1,0 +1,6 @@
+presidio-evaluator>=0.1.5
+presidio-analyzer>=2.2
+datasets>=2.14
+faker>=18.0
+spacy>=3.5
+tabulate>=0.9
