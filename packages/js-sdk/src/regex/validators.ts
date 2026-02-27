@@ -837,7 +837,9 @@ export function iePpsChecksum(number: string): boolean {
 
 /** Validate Finnish HETU (Personal Identity Code) using mod-31 checksum. */
 export function fiHetuChecksum(number: string): boolean {
-  const cleaned = number.replace(/[\s-]/g, '')
+  let cleaned = number.replace(/[\s-]/g, '')
+  // Fallback: if stripping removed the separator, use the trimmed original
+  if (cleaned.length !== 11) cleaned = number.trim()
   if (cleaned.length !== 11) return false
   const datePart = cleaned.slice(0, 6)
   for (const c of datePart) {
