@@ -7,7 +7,7 @@ from blindfold.regex import PIIScanner, EntityType
 
 @pytest.fixture
 def scanner():
-    return PIIScanner(locales=["no"], entities=[EntityType.NO_BIRTH_NUMBER])
+    return PIIScanner(locales=["no"])
 
 
 def _no_bn(matches):

@@ -26,32 +26,24 @@ export function registerRegion(locale: string, cls: DetectorClass): void {
   REGION_DETECTORS[locale].push(cls)
 }
 
-/** Builds a list of detector instances filtered by locale and entity type. */
+/** Builds a list of detector instances filtered by locale. */
 export class DetectorRegistry {
   private _detectors: Detector[] = []
 
-  constructor(locales?: string[], entityTypes?: Set<string>) {
+  constructor(locales?: string[]) {
     const resolvedLocales = (locales ?? ['us']).map((loc) => loc.toLowerCase())
-    this._build(resolvedLocales, entityTypes)
+    this._build(resolvedLocales)
   }
 
-  private _build(locales: string[], entityTypes?: Set<string>): void {
+  private _build(locales: string[]): void {
     for (const Cls of UNIVERSAL_DETECTORS) {
-      const det = new Cls()
-      if (entityTypes && !entityTypes.has(det.entityType)) {
-        continue
-      }
-      this._detectors.push(det)
+      this._detectors.push(new Cls())
     }
 
     for (const locale of locales) {
       const regionClasses = REGION_DETECTORS[locale] ?? []
       for (const Cls of regionClasses) {
-        const det = new Cls()
-        if (entityTypes && !entityTypes.has(det.entityType)) {
-          continue
-        }
-        this._detectors.push(det)
+        this._detectors.push(new Cls())
       }
     }
   }

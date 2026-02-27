@@ -129,9 +129,8 @@ async function main() {
 
   // Entity filtering — only Email Address, SSN ignored
   console.log('12. ENTITY FILTER — only Email Address')
-  const emailOnly = new Blindfold({ entities: ['Email Address'] })
   const filterText = 'Email support@acme.com, SSN 123-45-6789'
-  const filterResult = await emailOnly.detect(filterText)
+  const filterResult = await client.detect(filterText, { entities: ['Email Address'] })
   console.log(`   Input: ${filterText}`)
   console.log(`   Found ${filterResult.entities_count} entities (SSN ignored):`)
   for (const e of filterResult.detected_entities) {
@@ -141,12 +140,22 @@ async function main() {
 
   // Combined — locales + entities
   console.log('13. COMBINED — locales: [cz] + entities: [Czech Birth Number]')
-  const combined = new Blindfold({ locales: ['cz'], entities: ['Czech Birth Number'] })
+  const combined = new Blindfold({ locales: ['cz'] })
   const combinedText = 'Rodne cislo: 710319/2745, email test@example.com'
-  const combinedResult = await combined.detect(combinedText)
+  const combinedResult = await combined.detect(combinedText, { entities: ['Czech Birth Number'] })
   console.log(`   Input: ${combinedText}`)
   console.log(`   Found ${combinedResult.entities_count} entities (email ignored):`)
   for (const e of combinedResult.detected_entities) {
+    console.log(`   - ${e.type}: "${e.text}"`)
+  }
+  console.log()
+
+  // Policy-based detection
+  console.log('14. POLICY — gdpr_eu')
+  const policyResult = await client.detect(text, { policy: 'gdpr_eu' })
+  console.log(`   Input: ${text}`)
+  console.log(`   Found ${policyResult.entities_count} entities (GDPR scope):`)
+  for (const e of policyResult.detected_entities) {
     console.log(`   - ${e.type}: "${e.text}"`)
   }
   console.log()
@@ -155,6 +164,7 @@ async function main() {
   console.log('='.repeat(65))
   console.log('All 8 methods ran offline — zero network calls, zero API keys.')
   console.log('Multi-locale detection supports EU, UK, CZ, and more.')
+  console.log('Policy and per-call entity filtering work in local mode.')
 }
 
 main().catch(console.error)

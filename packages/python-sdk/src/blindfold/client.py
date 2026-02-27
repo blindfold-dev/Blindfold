@@ -1,9 +1,12 @@
 """Blindfold client for tokenization and detokenization"""
 
 import asyncio
+import json
 import random
 import time
-from typing import Any, Dict, List, Optional
+import warnings
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from pydantic import ValidationError
@@ -32,6 +35,20 @@ REGION_URLS = {
 }
 
 
+_BUNDLED_POLICIES_PATH = Path(__file__).parent / "policies.json"
+
+
+def _load_policies(policies_file: Optional[str] = None) -> Dict[str, Any]:
+    """Load bundled policies, optionally merged with a user-provided file."""
+    with open(_BUNDLED_POLICIES_PATH, "r", encoding="utf-8") as f:
+        policies: Dict[str, Any] = json.load(f)
+    if policies_file:
+        with open(policies_file, "r", encoding="utf-8") as f:
+            user_policies: Dict[str, Any] = json.load(f)
+        policies.update(user_policies)
+    return policies
+
+
 class Blindfold:
     """
     Blindfold client for tokenization and detokenization operations.
@@ -53,7 +70,7 @@ class Blindfold:
         region: Optional[str] = None,
         mode: Optional[str] = None,
         locales: Optional[List[str]] = None,
-        entities: Optional[List[str]] = None,
+        policies_file: Optional[str] = None,
     ) -> None:
         """
         Initialize Blindfold client.
@@ -72,13 +89,12 @@ class Blindfold:
             locales: Optional locale codes for the local regex scanner
                 (default: ``["us"]``). Example: ``["us", "eu", "cz"]``.
                 Only used in local mode.
-            entities: Optional entity types to restrict the local regex
-                scanner. Example: ``["Email Address", "Czech Birth Number"]``.
-                Only used in local mode.
+            policies_file: Optional path to a JSON file with custom policy
+                definitions. Merged over the bundled policies.
         """
         self.api_key = api_key
         self._locales = locales
-        self._entities = entities
+        self._policies = _load_policies(policies_file)
         if region and base_url == DEFAULT_BASE_URL:
             region_lower = region.lower()
             if region_lower not in REGION_URLS:
@@ -95,6 +111,13 @@ class Blindfold:
         self._client: Optional[httpx.Client] = None
         self._scanner: Optional["PIIScanner"] = None
 
+        if self._use_local and region:
+            warnings.warn(
+                f"region='{region}' has no effect in local mode. "
+                "Set a BLINDFOLD_API_KEY to use region-based routing.",
+                stacklevel=2,
+            )
+
     @property
     def _use_local(self) -> bool:
         """Whether to use the local regex scanner instead of the API."""
@@ -105,12 +128,29 @@ class Blindfold:
     def _get_scanner(self) -> "PIIScanner":
         """Lazy-init the local PII scanner."""
         if self._scanner is None:
-            from .regex import PIIScanner, EntityType
-            entity_types = None
-            if self._entities:
-                entity_types = [EntityType(e) for e in self._entities]
-            self._scanner = PIIScanner(locales=self._locales, entities=entity_types)
+            from .regex import PIIScanner
+            self._scanner = PIIScanner(locales=self._locales)
         return self._scanner
+
+    def _resolve_policy(
+        self,
+        policy: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+    ) -> Tuple[Optional[List[str]], Optional[float]]:
+        """Resolve policy/entities/threshold for local mode.
+
+        Returns (resolved_entities, resolved_threshold).
+        """
+        if entities:
+            return entities, score_threshold
+        if policy:
+            policy_def = self._policies.get(policy)
+            if policy_def:
+                return policy_def["entities"], score_threshold or policy_def.get("threshold")
+            else:
+                warnings.warn(f"Unknown policy '{policy}' in local mode, detecting all entities")
+        return None, score_threshold
 
     @property
     def client(self) -> httpx.Client:
@@ -260,7 +300,7 @@ class Blindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._tokenize_local(text)
+            return self._tokenize_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text}
         if entities is not None:
@@ -281,12 +321,19 @@ class Blindfold:
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
 
-    def _tokenize_local(self, text: str) -> TokenizeResponse:
+    def _tokenize_local(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> TokenizeResponse:
         """Run local regex-based PII tokenization."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.tokenize(text)
+        result = scanner.tokenize(text, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -294,6 +341,7 @@ class Blindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return TokenizeResponse(
@@ -336,7 +384,7 @@ class Blindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._detect_local(text, score_threshold)
+            return self._detect_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text}
         if entities is not None:
@@ -360,17 +408,20 @@ class Blindfold:
     def _detect_local(
         self,
         text: str,
+        entities: Optional[List[str]] = None,
         score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> DetectResponse:
         """Run local regex-based PII detection."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        matches = scanner.detect(text)
+        matches = scanner.detect(text, entities=resolved_entities)
 
         detected = []
         for m in matches:
-            if score_threshold is not None and m.score < score_threshold:
+            if resolved_threshold is not None and m.score < resolved_threshold:
                 continue
             detected.append(DetectedEntity(
                 type=m.entity_type,
@@ -454,7 +505,7 @@ class Blindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._redact_local(text, score_threshold)
+            return self._redact_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text, "masking_char": masking_char}
         if entities is not None:
@@ -478,17 +529,20 @@ class Blindfold:
     def _redact_local(
         self,
         text: str,
+        entities: Optional[List[str]] = None,
         score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> RedactResponse:
         """Run local regex-based PII redaction."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        redacted_text, matches = scanner.redact(text)
+        redacted_text, matches = scanner.redact(text, entities=resolved_entities)
 
         detected = []
         for m in matches:
-            if score_threshold is not None and m.score < score_threshold:
+            if resolved_threshold is not None and m.score < resolved_threshold:
                 continue
             detected.append(DetectedEntity(
                 type=m.entity_type,
@@ -539,7 +593,7 @@ class Blindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._mask_local(text, chars_to_show, from_end, masking_char)
+            return self._mask_local(text, chars_to_show, from_end, masking_char, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {
             "text": text,
@@ -571,12 +625,16 @@ class Blindfold:
         chars_to_show: int = 3,
         from_end: bool = False,
         masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> MaskResponse:
         """Run local regex-based PII masking."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.mask(text, chars_to_show, from_end, masking_char)
+        result = scanner.mask(text, chars_to_show, from_end, masking_char, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -584,6 +642,7 @@ class Blindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return MaskResponse(
@@ -625,7 +684,7 @@ class Blindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._synthesize_local(text)
+            return self._synthesize_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text, "language": language}
         if entities is not None:
@@ -646,12 +705,19 @@ class Blindfold:
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
 
-    def _synthesize_local(self, text: str) -> SynthesizeResponse:
+    def _synthesize_local(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> SynthesizeResponse:
         """Run local regex-based PII synthesis."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.synthesize(text)
+        result = scanner.synthesize(text, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -659,6 +725,7 @@ class Blindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return SynthesizeResponse(
@@ -703,7 +770,7 @@ class Blindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._hash_local(text, hash_type, hash_prefix, hash_length)
+            return self._hash_local(text, hash_type, hash_prefix, hash_length, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {
             "text": text,
@@ -735,12 +802,16 @@ class Blindfold:
         hash_type: str = "sha256",
         hash_prefix: str = "HASH_",
         hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> HashResponse:
         """Run local regex-based PII hashing."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.hash(text, hash_type, hash_prefix, hash_length)
+        result = scanner.hash(text, hash_type, hash_prefix, hash_length, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -748,6 +819,7 @@ class Blindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return HashResponse(
@@ -788,7 +860,7 @@ class Blindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._encrypt_local(text, encryption_key)
+            return self._encrypt_local(text, encryption_key, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text}
         if encryption_key:
@@ -815,6 +887,9 @@ class Blindfold:
         self,
         text: str,
         encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> EncryptResponse:
         """Run local regex-based PII encryption."""
         if not encryption_key:
@@ -822,8 +897,9 @@ class Blindfold:
 
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.encrypt(text, encryption_key)
+        result = scanner.encrypt(text, encryption_key, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -831,6 +907,7 @@ class Blindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return EncryptResponse(
@@ -1018,7 +1095,7 @@ class AsyncBlindfold:
         region: Optional[str] = None,
         mode: Optional[str] = None,
         locales: Optional[List[str]] = None,
-        entities: Optional[List[str]] = None,
+        policies_file: Optional[str] = None,
     ) -> None:
         """
         Initialize async Blindfold client.
@@ -1037,13 +1114,12 @@ class AsyncBlindfold:
             locales: Optional locale codes for the local regex scanner
                 (default: ``["us"]``). Example: ``["us", "eu", "cz"]``.
                 Only used in local mode.
-            entities: Optional entity types to restrict the local regex
-                scanner. Example: ``["Email Address", "Czech Birth Number"]``.
-                Only used in local mode.
+            policies_file: Optional path to a JSON file with custom policy
+                definitions. Merged over the bundled policies.
         """
         self.api_key = api_key
         self._locales = locales
-        self._entities = entities
+        self._policies = _load_policies(policies_file)
         if region and base_url == DEFAULT_BASE_URL:
             region_lower = region.lower()
             if region_lower not in REGION_URLS:
@@ -1060,6 +1136,13 @@ class AsyncBlindfold:
         self._client: Optional[httpx.AsyncClient] = None
         self._scanner: Optional["PIIScanner"] = None
 
+        if self._use_local and region:
+            warnings.warn(
+                f"region='{region}' has no effect in local mode. "
+                "Set a BLINDFOLD_API_KEY to use region-based routing.",
+                stacklevel=2,
+            )
+
     @property
     def _use_local(self) -> bool:
         """Whether to use the local regex scanner instead of the API."""
@@ -1070,12 +1153,26 @@ class AsyncBlindfold:
     def _get_scanner(self) -> "PIIScanner":
         """Lazy-init the local PII scanner."""
         if self._scanner is None:
-            from .regex import PIIScanner, EntityType
-            entity_types = None
-            if self._entities:
-                entity_types = [EntityType(e) for e in self._entities]
-            self._scanner = PIIScanner(locales=self._locales, entities=entity_types)
+            from .regex import PIIScanner
+            self._scanner = PIIScanner(locales=self._locales)
         return self._scanner
+
+    def _resolve_policy(
+        self,
+        policy: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+    ) -> Tuple[Optional[List[str]], Optional[float]]:
+        """Resolve policy/entities/threshold for local mode."""
+        if entities:
+            return entities, score_threshold
+        if policy:
+            policy_def = self._policies.get(policy)
+            if policy_def:
+                return policy_def["entities"], score_threshold or policy_def.get("threshold")
+            else:
+                warnings.warn(f"Unknown policy '{policy}' in local mode, detecting all entities")
+        return None, score_threshold
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -1225,7 +1322,7 @@ class AsyncBlindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._tokenize_local(text)
+            return self._tokenize_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text}
         if entities is not None:
@@ -1246,12 +1343,19 @@ class AsyncBlindfold:
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
 
-    def _tokenize_local(self, text: str) -> TokenizeResponse:
+    def _tokenize_local(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> TokenizeResponse:
         """Run local regex-based PII tokenization."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.tokenize(text)
+        result = scanner.tokenize(text, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -1259,6 +1363,7 @@ class AsyncBlindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return TokenizeResponse(
@@ -1301,7 +1406,7 @@ class AsyncBlindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._detect_local(text, score_threshold)
+            return self._detect_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text}
         if entities is not None:
@@ -1325,17 +1430,20 @@ class AsyncBlindfold:
     def _detect_local(
         self,
         text: str,
+        entities: Optional[List[str]] = None,
         score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> DetectResponse:
         """Run local regex-based PII detection."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        matches = scanner.detect(text)
+        matches = scanner.detect(text, entities=resolved_entities)
 
         detected = []
         for m in matches:
-            if score_threshold is not None and m.score < score_threshold:
+            if resolved_threshold is not None and m.score < resolved_threshold:
                 continue
             detected.append(DetectedEntity(
                 type=m.entity_type,
@@ -1419,7 +1527,7 @@ class AsyncBlindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._redact_local(text, score_threshold)
+            return self._redact_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text, "masking_char": masking_char}
         if entities is not None:
@@ -1443,17 +1551,20 @@ class AsyncBlindfold:
     def _redact_local(
         self,
         text: str,
+        entities: Optional[List[str]] = None,
         score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> RedactResponse:
         """Run local regex-based PII redaction."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        redacted_text, matches = scanner.redact(text)
+        redacted_text, matches = scanner.redact(text, entities=resolved_entities)
 
         detected = []
         for m in matches:
-            if score_threshold is not None and m.score < score_threshold:
+            if resolved_threshold is not None and m.score < resolved_threshold:
                 continue
             detected.append(DetectedEntity(
                 type=m.entity_type,
@@ -1504,7 +1615,7 @@ class AsyncBlindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._mask_local(text, chars_to_show, from_end, masking_char)
+            return self._mask_local(text, chars_to_show, from_end, masking_char, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {
             "text": text,
@@ -1536,12 +1647,16 @@ class AsyncBlindfold:
         chars_to_show: int = 3,
         from_end: bool = False,
         masking_char: str = "*",
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> MaskResponse:
         """Run local regex-based PII masking."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.mask(text, chars_to_show, from_end, masking_char)
+        result = scanner.mask(text, chars_to_show, from_end, masking_char, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -1549,6 +1664,7 @@ class AsyncBlindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return MaskResponse(
@@ -1590,7 +1706,7 @@ class AsyncBlindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._synthesize_local(text)
+            return self._synthesize_local(text, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text, "language": language}
         if entities is not None:
@@ -1611,12 +1727,19 @@ class AsyncBlindfold:
                 f"Invalid response format: {str(e)}", 200, response_data
             ) from e
 
-    def _synthesize_local(self, text: str) -> SynthesizeResponse:
+    def _synthesize_local(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
+    ) -> SynthesizeResponse:
         """Run local regex-based PII synthesis."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.synthesize(text)
+        result = scanner.synthesize(text, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -1624,6 +1747,7 @@ class AsyncBlindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return SynthesizeResponse(
@@ -1668,7 +1792,7 @@ class AsyncBlindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._hash_local(text, hash_type, hash_prefix, hash_length)
+            return self._hash_local(text, hash_type, hash_prefix, hash_length, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {
             "text": text,
@@ -1700,12 +1824,16 @@ class AsyncBlindfold:
         hash_type: str = "sha256",
         hash_prefix: str = "HASH_",
         hash_length: int = 16,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> HashResponse:
         """Run local regex-based PII hashing."""
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.hash(text, hash_type, hash_prefix, hash_length)
+        result = scanner.hash(text, hash_type, hash_prefix, hash_length, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -1713,6 +1841,7 @@ class AsyncBlindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return HashResponse(
@@ -1753,7 +1882,7 @@ class AsyncBlindfold:
             NetworkError: If network request fails
         """
         if self._use_local:
-            return self._encrypt_local(text, encryption_key)
+            return self._encrypt_local(text, encryption_key, entities, score_threshold, policy)
 
         payload: Dict[str, Any] = {"text": text}
         if encryption_key:
@@ -1780,6 +1909,9 @@ class AsyncBlindfold:
         self,
         text: str,
         encryption_key: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        score_threshold: Optional[float] = None,
+        policy: Optional[str] = None,
     ) -> EncryptResponse:
         """Run local regex-based PII encryption."""
         if not encryption_key:
@@ -1787,8 +1919,9 @@ class AsyncBlindfold:
 
         from .models import DetectedEntity
 
+        resolved_entities, resolved_threshold = self._resolve_policy(policy, entities, score_threshold)
         scanner = self._get_scanner()
-        result = scanner.encrypt(text, encryption_key)
+        result = scanner.encrypt(text, encryption_key, entities=resolved_entities)
 
         detected = [
             DetectedEntity(
@@ -1796,6 +1929,7 @@ class AsyncBlindfold:
                 start=m.start, end=m.end, score=m.score,
             )
             for m in result.matches
+            if resolved_threshold is None or m.score >= resolved_threshold
         ]
 
         return EncryptResponse(

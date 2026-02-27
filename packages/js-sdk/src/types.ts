@@ -18,8 +18,8 @@ export interface BlindfoldConfig {
   mode?: 'local' | 'api'
   /** Locale codes for the local regex scanner (default: ["us"]). Example: ["us", "eu", "cz"]. Only used in local mode. */
   locales?: string[]
-  /** Entity types to restrict the local regex scanner. Example: ["Email Address", "Czech Birth Number"]. Only used in local mode. */
-  entities?: string[]
+  /** Path to a JSON file with custom policy definitions. Merged over the bundled policies. */
+  policiesFile?: string
 }
 
 /**

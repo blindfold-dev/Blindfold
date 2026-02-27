@@ -7,7 +7,7 @@ from blindfold.regex import PIIScanner, EntityType
 
 @pytest.fixture
 def scanner():
-    return PIIScanner(locales=["za"], entities=[EntityType.ZA_ID])
+    return PIIScanner(locales=["za"])
 
 
 def _za_id(matches):

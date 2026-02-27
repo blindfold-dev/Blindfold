@@ -3,7 +3,7 @@
 import base64
 import hashlib
 import os
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .entities import EntityType, PIIMatch
 from .registry import DetectorRegistry
@@ -75,35 +75,44 @@ class PIIScanner:
 
     Args:
         locales: List of locale codes to enable (default ``["us"]``).
-        entities: Optional list of :class:`EntityType` values to restrict detection.
     """
 
     def __init__(
         self,
         locales: Optional[List[str]] = None,
-        entities: Optional[List[EntityType]] = None,
     ) -> None:
-        entity_types: Optional[Set[str]] = None
-        if entities:
-            entity_types = {e.value for e in entities}
-        self._registry = DetectorRegistry(
-            locales=locales,
-            entity_types=entity_types,
-        )
+        self._registry = DetectorRegistry(locales=locales)
 
-    def detect(self, text: str) -> List[PIIMatch]:
-        """Detect PII entities in *text* and return deduplicated matches."""
+    def detect(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+    ) -> List[PIIMatch]:
+        """Detect PII entities in *text* and return deduplicated matches.
+
+        Args:
+            text: Text to scan.
+            entities: Optional list of entity type names to restrict detection.
+        """
+        detectors = self._registry.detectors
+        if entities:
+            entity_set = set(entities)
+            detectors = [d for d in detectors if d.entity_type.value in entity_set]
         all_matches: List[PIIMatch] = []
-        for detector in self._registry.detectors:
+        for detector in detectors:
             all_matches.extend(detector.iter_matches(text))
         return self._deduplicate(all_matches)
 
-    def redact(self, text: str) -> Tuple[str, List[PIIMatch]]:
+    def redact(
+        self,
+        text: str,
+        entities: Optional[List[str]] = None,
+    ) -> Tuple[str, List[PIIMatch]]:
         """Detect and remove PII from text.
 
         Returns a tuple of (redacted_text, detected_matches).
         """
-        matches = self.detect(text)
+        matches = self.detect(text, entities=entities)
         if not matches:
             return text, []
 
@@ -117,12 +126,12 @@ class PIIScanner:
 
         return result, matches
 
-    def tokenize(self, text: str) -> TokenizeResult:
+    def tokenize(self, text: str, entities: Optional[List[str]] = None) -> TokenizeResult:
         """Detect PII and replace with numbered tokens like ``<Email Address_1>``.
 
         Returns a :class:`TokenizeResult` with tokenized text, mapping, and matches.
         """
-        matches = self.detect(text)
+        matches = self.detect(text, entities=entities)
         if not matches:
             return TokenizeResult(text=text, mapping={}, matches=[])
 
@@ -154,9 +163,10 @@ class PIIScanner:
         chars_to_show: int = 3,
         from_end: bool = False,
         masking_char: str = "*",
+        entities: Optional[List[str]] = None,
     ) -> MaskResult:
         """Detect PII and partially mask each match."""
-        matches = self.detect(text)
+        matches = self.detect(text, entities=entities)
         if not matches:
             return MaskResult(text=text, matches=[])
 
@@ -180,9 +190,10 @@ class PIIScanner:
         hash_type: str = "sha256",
         hash_prefix: str = "HASH_",
         hash_length: int = 16,
+        entities: Optional[List[str]] = None,
     ) -> HashResult:
         """Detect PII and replace each match with a deterministic hash."""
-        matches = self.detect(text)
+        matches = self.detect(text, entities=entities)
         if not matches:
             return HashResult(text=text, matches=[])
 
@@ -197,7 +208,7 @@ class PIIScanner:
 
         return HashResult(text=result, matches=matches)
 
-    def encrypt(self, text: str, encryption_key: str) -> EncryptResult:
+    def encrypt(self, text: str, encryption_key: str, entities: Optional[List[str]] = None) -> EncryptResult:
         """Detect PII and encrypt each match with AES-256-CBC.
 
         Args:
@@ -222,7 +233,7 @@ class PIIScanner:
                 "Install it with: pip install cryptography"
             )
 
-        matches = self.detect(text)
+        matches = self.detect(text, entities=entities)
         if not matches:
             return EncryptResult(text=text, matches=[])
 
@@ -244,14 +255,14 @@ class PIIScanner:
 
         return EncryptResult(text=result, matches=matches)
 
-    def synthesize(self, text: str, language: Optional[str] = None) -> SynthesizeResult:
+    def synthesize(self, text: str, language: Optional[str] = None, entities: Optional[List[str]] = None) -> SynthesizeResult:
         """Detect PII and replace each match with format-preserving synthetic data.
 
         Args:
             text: Text to process.
             language: Accepted for API compatibility but ignored locally.
         """
-        matches = self.detect(text)
+        matches = self.detect(text, entities=entities)
         if not matches:
             return SynthesizeResult(text=text, matches=[])
 

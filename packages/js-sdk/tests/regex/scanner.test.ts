@@ -251,19 +251,53 @@ describe('Blindfold client locales and entities', () => {
     expect(types).not.toContain('Czech Birth Number')
   })
 
-  test('should filter entities - only detect emails', async () => {
-    const client = new Blindfold({ entities: ['Email Address'] })
-    const result = await client.detect('Email john@acme.com, SSN 123-45-6789')
+  test('should filter entities per method call - only detect emails', async () => {
+    const client = new Blindfold()
+    const result = await client.detect('Email john@acme.com, SSN 123-45-6789', {
+      entities: ['Email Address'],
+    })
     const types = result.detected_entities.map((e) => e.type)
     expect(types).toContain('Email Address')
     expect(types).not.toContain('Social Security Number')
   })
 
-  test('should combine locales and entities', async () => {
-    const client = new Blindfold({ locales: ['cz'], entities: ['Czech Birth Number'] })
-    const result = await client.detect('Rodne cislo: 710319/2745, email john@acme.com')
+  test('should combine locales and method-level entities', async () => {
+    const client = new Blindfold({ locales: ['cz'] })
+    const result = await client.detect('Rodne cislo: 710319/2745, email john@acme.com', {
+      entities: ['Czech Birth Number'],
+    })
     const types = result.detected_entities.map((e) => e.type)
     expect(types).toContain('Czech Birth Number')
     expect(types).not.toContain('Email Address')
+  })
+})
+
+describe('PIIScanner method-level entities', () => {
+  const scanner = new PIIScanner({ locales: ['us', 'eu'] })
+
+  test('detect should filter by entities', () => {
+    const matches = scanner.detect('Email john@acme.com, SSN 123-45-6789', ['Email Address'])
+    expect(matches.length).toBe(1)
+    expect(matches[0].entityType).toBe('Email Address')
+  })
+
+  test('tokenize should filter by entities', () => {
+    const result = scanner.tokenize('Email john@acme.com, SSN 123-45-6789', ['Email Address'])
+    expect(result.text).toContain('<Email Address_1>')
+    expect(result.text).toContain('123-45-6789')
+  })
+
+  test('redact should filter by entities', () => {
+    const [redacted, matches] = scanner.redact('Email john@acme.com, SSN 123-45-6789', [
+      'Email Address',
+    ])
+    expect(redacted).not.toContain('john@acme.com')
+    expect(redacted).toContain('123-45-6789')
+    expect(matches.length).toBe(1)
+  })
+
+  test('detect without entities returns all', () => {
+    const matches = scanner.detect('Email john@acme.com, SSN 123-45-6789')
+    expect(matches.length).toBeGreaterThanOrEqual(2)
   })
 })

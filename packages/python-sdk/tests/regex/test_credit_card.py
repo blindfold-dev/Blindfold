@@ -7,7 +7,7 @@ from blindfold.regex import PIIScanner, EntityType
 
 @pytest.fixture
 def scanner():
-    return PIIScanner(entities=[EntityType.CREDIT_CARD])
+    return PIIScanner()
 
 
 def _cc(matches):

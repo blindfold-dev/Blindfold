@@ -7,7 +7,7 @@ from blindfold.regex import PIIScanner, EntityType
 
 @pytest.fixture
 def scanner():
-    return PIIScanner(entities=[EntityType.EMAIL_ADDRESS])
+    return PIIScanner()
 
 
 def _emails(matches):

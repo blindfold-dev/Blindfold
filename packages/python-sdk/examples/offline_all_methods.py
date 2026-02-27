@@ -132,9 +132,8 @@ def main():
 
     # Entity filtering — only Email Address, SSN ignored
     print("12. ENTITY FILTER — only Email Address")
-    email_only = Blindfold(entities=["Email Address"])
     filter_text = "Email support@acme.com, SSN 123-45-6789"
-    filter_result = email_only.detect(filter_text)
+    filter_result = client.detect(filter_text, entities=["Email Address"])
     print(f"   Input: {filter_text}")
     print(f"   Found {filter_result.entities_count} entities (SSN ignored):")
     for e in filter_result.detected_entities:
@@ -143,12 +142,21 @@ def main():
 
     # Combined — locales + entities
     print("13. COMBINED — locales: [cz] + entities: [Czech Birth Number]")
-    combined = Blindfold(locales=["cz"], entities=["Czech Birth Number"])
+    combined = Blindfold(locales=["cz"])
     combined_text = "Rodne cislo: 710319/2745, email test@example.com"
-    combined_result = combined.detect(combined_text)
+    combined_result = combined.detect(combined_text, entities=["Czech Birth Number"])
     print(f"   Input: {combined_text}")
     print(f"   Found {combined_result.entities_count} entities (email ignored):")
     for e in combined_result.detected_entities:
+        print(f'   - {e.type}: "{e.text}"')
+    print()
+
+    # Policy-based detection
+    print("14. POLICY — gdpr_eu")
+    policy_result = client.detect(text, policy="gdpr_eu")
+    print(f"   Input: {text}")
+    print(f"   Found {policy_result.entities_count} entities (GDPR scope):")
+    for e in policy_result.detected_entities:
         print(f'   - {e.type}: "{e.text}"')
     print()
 
@@ -156,6 +164,7 @@ def main():
     print("=" * 65)
     print("All 8 methods ran offline — zero network calls, zero API keys.")
     print("Multi-locale detection supports EU, UK, CZ, and more.")
+    print("Policy and per-call entity filtering work in local mode.")
 
 
 if __name__ == "__main__":

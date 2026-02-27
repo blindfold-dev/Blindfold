@@ -11,8 +11,6 @@ import './detectors/index'
 export interface PIIScannerOptions {
   /** List of locale codes to enable (default: ["us"]). */
   locales?: string[]
-  /** Optional list of EntityType values to restrict detection. */
-  entities?: EntityType[]
 }
 
 export interface TokenizeResult {
@@ -53,17 +51,18 @@ export class PIIScanner {
   private registry: DetectorRegistry
 
   constructor(options?: PIIScannerOptions) {
-    let entityTypes: Set<string> | undefined
-    if (options?.entities) {
-      entityTypes = new Set(options.entities.map((e) => e as string))
-    }
-    this.registry = new DetectorRegistry(options?.locales, entityTypes)
+    this.registry = new DetectorRegistry(options?.locales)
   }
 
   /** Detect PII entities in text and return deduplicated matches. */
-  detect(text: string): PIIMatch[] {
+  detect(text: string, entities?: string[]): PIIMatch[] {
+    let detectors = this.registry.detectors
+    if (entities) {
+      const entitySet = new Set(entities)
+      detectors = detectors.filter((d) => entitySet.has(d.entityType))
+    }
     const allMatches: PIIMatch[] = []
-    for (const detector of this.registry.detectors) {
+    for (const detector of detectors) {
       allMatches.push(...detector.iterMatches(text))
     }
     return this.deduplicate(allMatches)
@@ -73,8 +72,8 @@ export class PIIScanner {
    * Detect and remove PII from text.
    * Returns a tuple of [redactedText, detectedMatches].
    */
-  redact(text: string): [string, PIIMatch[]] {
-    const matches = this.detect(text)
+  redact(text: string, entities?: string[]): [string, PIIMatch[]] {
+    const matches = this.detect(text, entities)
     if (matches.length === 0) {
       return [text, []]
     }
@@ -95,8 +94,8 @@ export class PIIScanner {
    * Detect PII and replace with numbered tokens like `<Email Address_1>`.
    * Returns tokenized text, a mapping from tokens to original values, and matches.
    */
-  tokenize(text: string): TokenizeResult {
-    const matches = this.detect(text)
+  tokenize(text: string, entities?: string[]): TokenizeResult {
+    const matches = this.detect(text, entities)
     if (matches.length === 0) {
       return { text, mapping: {}, matches: [] }
     }
@@ -133,9 +132,10 @@ export class PIIScanner {
     text: string,
     charsToShow: number = 3,
     fromEnd: boolean = false,
-    maskingChar: string = '*'
+    maskingChar: string = '*',
+    entities?: string[]
   ): MaskResult {
-    const matches = this.detect(text)
+    const matches = this.detect(text, entities)
     if (matches.length === 0) {
       return { text, matches: [] }
     }
@@ -165,9 +165,10 @@ export class PIIScanner {
     text: string,
     hashType: string = 'sha256',
     hashPrefix: string = 'HASH_',
-    hashLength: number = 16
+    hashLength: number = 16,
+    entities?: string[]
   ): HashResult {
-    const matches = this.detect(text)
+    const matches = this.detect(text, entities)
     if (matches.length === 0) {
       return { text, matches: [] }
     }
@@ -188,12 +189,12 @@ export class PIIScanner {
    * Detect PII and encrypt each match with AES-256-CBC.
    * @param encryptionKey - Required, minimum 16 characters.
    */
-  encrypt(text: string, encryptionKey: string): EncryptResult {
+  encrypt(text: string, encryptionKey: string, entities?: string[]): EncryptResult {
     if (!encryptionKey || encryptionKey.length < 16) {
       throw new Error('encryptionKey is required and must be at least 16 characters for local encryption')
     }
 
-    const matches = this.detect(text)
+    const matches = this.detect(text, entities)
     if (matches.length === 0) {
       return { text, matches: [] }
     }
@@ -219,8 +220,8 @@ export class PIIScanner {
    * Detect PII and replace each match with format-preserving synthetic data.
    * @param _language - Accepted for API compatibility but ignored locally.
    */
-  synthesize(text: string, _language?: string): SynthesizeResult {
-    const matches = this.detect(text)
+  synthesize(text: string, _language?: string, entities?: string[]): SynthesizeResult {
+    const matches = this.detect(text, entities)
     if (matches.length === 0) {
       return { text, matches: [] }
     }

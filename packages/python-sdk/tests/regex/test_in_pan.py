@@ -7,7 +7,7 @@ from blindfold.regex import PIIScanner, EntityType
 
 @pytest.fixture
 def scanner():
-    return PIIScanner(locales=["in"], entities=[EntityType.IN_PAN])
+    return PIIScanner(locales=["in"])
 
 
 def _in_pan(matches):

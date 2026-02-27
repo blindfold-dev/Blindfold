@@ -7,7 +7,7 @@ from blindfold.regex import PIIScanner, EntityType
 
 @pytest.fixture
 def scanner():
-    return PIIScanner(locales=["ar"], entities=[EntityType.AR_CUIT])
+    return PIIScanner(locales=["ar"])
 
 
 def _ar_cuit(matches):

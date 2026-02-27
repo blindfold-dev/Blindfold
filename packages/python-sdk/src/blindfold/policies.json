@@ -1,0 +1,42 @@
+{
+  "basic": {
+    "entities": ["Person", "Email Address", "Phone Number"],
+    "threshold": 0.30
+  },
+  "gdpr_eu": {
+    "entities": [
+      "Person", "Email Address", "Phone Number", "Address",
+      "National ID Number", "Passport Number", "Driver's License Number",
+      "Tax Identification Number", "Bank Account Number", "IBAN",
+      "Credit Card Number", "Date of Birth", "IP Address",
+      "Health Insurance Number", "Medical Condition"
+    ],
+    "threshold": 0.35
+  },
+  "hipaa_us": {
+    "entities": [
+      "Person", "Social Security Number", "Health Insurance Number",
+      "Medical Condition", "Medication", "Blood Type", "Date of Birth",
+      "Phone Number", "Email Address", "Address", "Health Insurance ID Number"
+    ],
+    "threshold": 0.40
+  },
+  "pci_dss": {
+    "entities": [
+      "Credit Card Number", "Credit Card Expiration Date", "CVV",
+      "Bank Account Number", "IBAN", "Transaction Number", "Person", "Address"
+    ],
+    "threshold": 0.45
+  },
+  "strict": {
+    "entities": [
+      "Person", "Organization", "Email Address", "Phone Number",
+      "Address", "National ID Number", "Passport Number",
+      "Social Security Number", "Driver's License Number",
+      "Tax Identification Number", "Bank Account Number", "IBAN",
+      "Credit Card Number", "Date of Birth", "IP Address", "Username",
+      "Medical Condition", "Health Insurance Number", "Medication", "Blood Type"
+    ],
+    "threshold": 0.25
+  }
+}

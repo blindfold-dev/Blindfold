@@ -7,7 +7,7 @@ from blindfold.regex import PIIScanner, EntityType
 
 @pytest.fixture
 def scanner():
-    return PIIScanner(locales=["ca"], entities=[EntityType.CA_SIN])
+    return PIIScanner(locales=["ca"])
 
 
 def _ca_sin(matches):
