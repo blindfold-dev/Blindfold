@@ -32,6 +32,30 @@ describe('False Positives', () => {
     expect(zips.length).toBe(0)
   })
 
+  test('year range should not match as phone', () => {
+    const phones = scanner.detect('From 2024-2025').filter((m) => m.entityType === 'Phone Number')
+    expect(phones.length).toBe(0)
+  })
+
+  test('single year should not match as phone', () => {
+    const phones = scanner.detect('Year 2024').filter((m) => m.entityType === 'Phone Number')
+    expect(phones.length).toBe(0)
+  })
+
+  test('price should not match as credit card', () => {
+    const cc = scanner
+      .detect('Price: $1,234.56')
+      .filter((m) => m.entityType === 'Credit Card Number')
+    expect(cc.length).toBe(0)
+  })
+
+  test('large number should not match as credit card', () => {
+    const cc = scanner
+      .detect('Population: 1234567890')
+      .filter((m) => m.entityType === 'Credit Card Number')
+    expect(cc.length).toBe(0)
+  })
+
   test('normal sentence should not match', () => {
     expect(scanner.detect('The quick brown fox jumps over the lazy dog.')).toEqual([])
   })

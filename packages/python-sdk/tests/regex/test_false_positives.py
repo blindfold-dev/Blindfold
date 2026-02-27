@@ -35,6 +35,26 @@ class TestPlainNumbers:
         assert len(zips) == 0
 
 
+class TestYearRanges:
+    def test_year_range_not_phone(self, scanner):
+        phones = [m for m in scanner.detect("From 2024-2025") if m.entity_type == "Phone Number"]
+        assert len(phones) == 0
+
+    def test_single_year_not_phone(self, scanner):
+        phones = [m for m in scanner.detect("Year 2024") if m.entity_type == "Phone Number"]
+        assert len(phones) == 0
+
+
+class TestPricesNotCC:
+    def test_price_not_credit_card(self, scanner):
+        cc = [m for m in scanner.detect("Price: $1,234.56") if m.entity_type == "Credit Card Number"]
+        assert len(cc) == 0
+
+    def test_large_number_not_credit_card(self, scanner):
+        cc = [m for m in scanner.detect("Population: 1234567890") if m.entity_type == "Credit Card Number"]
+        assert len(cc) == 0
+
+
 class TestRegularSentences:
     def test_normal_sentence(self, scanner):
         assert scanner.detect("The quick brown fox jumps over the lazy dog.") == []

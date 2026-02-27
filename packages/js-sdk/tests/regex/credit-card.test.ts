@@ -35,6 +35,40 @@ describe('Credit Card Detection', () => {
     expect(matches[0].score).toBe(1.0)
   })
 
+  test('should detect Mastercard 2-series', () => {
+    const matches = cc(scanner.detect('Card: 2221000000000009'))
+    expect(matches.length).toBe(1)
+    expect(matches[0].score).toBe(1.0)
+  })
+
+  test('should detect Mastercard 2-series with dashes', () => {
+    expect(cc(scanner.detect('Card: 2720-9900-0000-0007')).length).toBe(1)
+  })
+
+  test('should detect Diners Club', () => {
+    const matches = cc(scanner.detect('Card: 30569309025904'))
+    expect(matches.length).toBe(1)
+    expect(matches[0].score).toBe(1.0)
+  })
+
+  test('should detect Diners Club 36 prefix', () => {
+    expect(cc(scanner.detect('Card: 36700102000000')).length).toBe(1)
+  })
+
+  test('should detect JCB', () => {
+    const matches = cc(scanner.detect('Card: 3530111333300000'))
+    expect(matches.length).toBe(1)
+    expect(matches[0].score).toBe(1.0)
+  })
+
+  test('should detect UnionPay 16-digit', () => {
+    expect(cc(scanner.detect('Card: 6212345678901232')).length).toBe(1)
+  })
+
+  test('should detect Visa 13-digit', () => {
+    expect(cc(scanner.detect('Card: 4222222222222')).length).toBe(1)
+  })
+
   test('should reject invalid Luhn', () => {
     expect(cc(scanner.detect('Card: 4532015112830367')).length).toBe(0)
   })
