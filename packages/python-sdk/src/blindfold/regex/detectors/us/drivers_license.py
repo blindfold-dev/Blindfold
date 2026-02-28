@@ -13,18 +13,23 @@ class DriversLicenseDetector(RegexDetector):
     score = 0.75
     context_keywords = [
         "driver", "license", "licence", "dl", "driver's license",
-        "driving license", "dl#", "dl #",
+        "driving license", "dl#", "dl #", "dmv", "permit",
     ]
     context_required = True
     context_window = 50
 
-    # Top state formats: CA (1L+7D), NY (9D), TX (8D), FL (1L+12D), IL (1L+11D)
+    # US state DL formats (ordered longest first to avoid partial matches)
     pattern = re.compile(
         r"\b(?:"
-        r"[A-Z]\d{7}"       # CA: A1234567
+        r"[A-Z]\d{14}"      # NJ: A12345678901234
+        r"|[A-Z]\d{13}"     # WI: A1234567890123
+        r"|[A-Z]\d{12}"     # FL: A123456789012
+        r"|[A-Z]\d{11}"     # IL: A12345678901
+        r"|[A-Z]\d{10}"     # MI: A1234567890
+        r"|[A-Z]\d{8}"      # MA/VA: A12345678
+        r"|[A-Z]{2}\d{6}"   # OH: AB123456
+        r"|[A-Z]\d{7}"      # CA: A1234567
         r"|\d{9}"           # NY: 123456789
-        r"|\d{8}"           # TX: 12345678
-        r"|[A-Z]\d{12}"    # FL: A123456789012
-        r"|[A-Z]\d{11}"    # IL: A12345678901
+        r"|\d{8}"           # TX/PA: 12345678
         r")\b"
     )

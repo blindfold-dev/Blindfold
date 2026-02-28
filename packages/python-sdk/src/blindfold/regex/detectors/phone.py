@@ -6,11 +6,18 @@ from ..base import RegexDetector
 from ..entities import EntityType
 from ..registry import register_universal
 
+_DATE_LIKE = re.compile(r"^\d{1,2}[-./]\d{1,2}[-./]\d{2,4}$")
+
 
 def _phone_length_check(text: str) -> bool:
     """Validate that the digit count is within phone number range (7-15)."""
     digits = sum(1 for c in text if c.isdigit())
-    return 7 <= digits <= 15
+    if not (7 <= digits <= 15):
+        return False
+    # Reject date-like patterns (e.g., 03-15-1990) to avoid stealing DOB matches
+    if _DATE_LIKE.match(text):
+        return False
+    return True
 
 
 @register_universal

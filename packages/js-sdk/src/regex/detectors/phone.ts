@@ -4,12 +4,17 @@ import { RegexDetector } from '../base'
 import { EntityType } from '../entities'
 import { registerUniversal } from '../registry'
 
+const DATE_LIKE = /^\d{1,2}[-./]\d{1,2}[-./]\d{2,4}$/
+
 function phoneLengthCheck(text: string): boolean {
   let digits = 0
   for (const c of text) {
     if (c >= '0' && c <= '9') digits++
   }
-  return digits >= 7 && digits <= 15
+  if (digits < 7 || digits > 15) return false
+  // Reject date-like patterns (e.g., 03-15-1990) to avoid stealing DOB matches
+  if (DATE_LIKE.test(text)) return false
+  return true
 }
 
 class PhoneDetector extends RegexDetector {

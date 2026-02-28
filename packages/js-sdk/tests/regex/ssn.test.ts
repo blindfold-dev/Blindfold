@@ -12,6 +12,37 @@ describe('SSN Detection', () => {
     expect(m[0].score).toBe(1.0)
   })
 
+  test('SSN with spaces', () => {
+    const m = ssn(scanner.detect('SSN 123 45 6789'))
+    expect(m.length).toBe(1)
+  })
+
+  test('SSN with dots', () => {
+    const m = ssn(scanner.detect('SSN 123.45.6789'))
+    expect(m.length).toBe(1)
+  })
+
+  // No-separator SSN with context
+  test('no separator with SSN context', () => {
+    const m = ssn(scanner.detect('SSN: 123456789'))
+    expect(m.length).toBe(1)
+    expect(m[0].text).toBe('123456789')
+  })
+
+  test('no separator with social security context', () => {
+    const m = ssn(scanner.detect('social security number: 123456789'))
+    expect(m.length).toBe(1)
+  })
+
+  test('no separator without context not detected', () => {
+    expect(ssn(scanner.detect('Reference: 123456789')).length).toBe(0)
+  })
+
+  test('no separator invalid area 000', () => {
+    expect(ssn(scanner.detect('SSN: 000456789')).length).toBe(0)
+  })
+
+  // Invalid SSNs
   test('should reject area 000', () => {
     expect(ssn(scanner.detect('SSN: 000-12-3456')).length).toBe(0)
   })

@@ -1,31 +1,60 @@
 # Blindfold Python SDK
 
-The official Python SDK for Blindfold - The Privacy API for AI.
+Detect, redact, tokenize, and mask PII in Python. 80+ entity types, 30+ countries, works offline with zero dependencies.
 
-Securely tokenize, mask, redact, and encrypt sensitive data (PII) before sending it to LLMs or third-party services.
+[![PyPI version](https://img.shields.io/pypi/v/blindfold-sdk)](https://pypi.org/project/blindfold-sdk/)
+[![License](https://img.shields.io/pypi/l/blindfold-sdk)](https://github.com/blindfold-dev/blindfold/blob/main/LICENSE)
 
-**Works offline with zero dependencies** - Detect, redact, synthesize, and more across 80+ PII entity types locally using the built-in regex scanner. No API key required. Add your API key to unlock 60+ entity types with NLP-powered detection.
+## Why Blindfold?
 
-## How to use it
+- **Works offline, zero dependencies** — No API key needed for local detection. No network calls. No external packages.
+- **80+ PII entity types** across 30+ countries with checksum validation (Luhn, IBAN mod-97, Verhoeff, etc.)
+- **100x faster than Presidio** — 0.3s vs 32s on 3,000 samples ([benchmark](https://blindfold.dev/blog/pii-detection-benchmark))
+- **Higher accuracy** — F1 56.2% vs Presidio 38.7% on AI4Privacy multilingual benchmark
+- **8 operations**: detect, redact, tokenize, detokenize, mask, hash, encrypt, synthesize
+- **Compliance-ready** — Built-in GDPR, HIPAA, PCI-DSS policies
+- **Optional NLP upgrade** — Add API key to detect names, addresses, organizations (60+ additional entities)
+- **Batch processing**, async support, typed errors
 
-### 1. Install SDK
+## Quick Comparison
+
+| Feature | Blindfold | Presidio | regex-only |
+|---|---|---|---|
+| Entity types (local) | 80+ | ~20 | Custom |
+| Countries | 30+ | ~5 | Custom |
+| Checksum validation | Luhn, mod-97, Verhoeff, ... | Partial | No |
+| Speed (3K samples) | 0.3s | 32s | Varies |
+| Zero dependencies | Yes | No (spaCy) | Yes |
+| NLP upgrade path | Yes (API) | Yes (built-in) | No |
+| Tokenize/detokenize | Yes | No | No |
+
+## Common Use Cases
+
+- **Sanitize LLM prompts** — Strip PII before sending to OpenAI, Anthropic, etc.
+- **PII-safe RAG pipelines** — Redact before embedding, restore after retrieval
+- **Log scrubbing** — Anonymize data in logs and data pipelines
+- **GDPR/HIPAA compliance** — Built-in policies for AI applications
+- **Synthetic test data** — Format-preserving fake data generation
+
+## Install
+
 ```bash
 pip install blindfold-sdk
 ```
 
-### 2. Start detecting PII (no API key needed)
+## Quick Start (no API key needed)
 
 ```python
 from blindfold import Blindfold
 
 client = Blindfold()
 
-# Detect PII locally - no API key, no network call
+# Detect PII locally — no API key, no network call
 result = client.detect("Email john@acme.com, SSN 123-45-6789")
 for entity in result.detected_entities:
     print(f"{entity.type}: {entity.text} (score: {entity.score})")
 # Email Address: john@acme.com (score: 0.95)
-# Social Security Number: 123-45-6789 (score: 0.9)
+# Social Security Number: 123-45-6789 (score: 1.0)
 
 # Redact PII locally
 result = client.redact("Email john@acme.com, SSN 123-45-6789")
@@ -33,39 +62,36 @@ print(result.text)
 # "Email, SSN"
 ```
 
-### 3. Upgrade to Blindfold API (optional)
+## Upgrade to Blindfold API (optional)
 
 For names, addresses, organizations, and 60+ entity types, add your API key:
 
-1. Sign up to Blindfold [here](https://www.blindfold.dev/).
-2. Get your API key [here](https://app.blindfold.dev/api-keys).
-3. Set environment variable with your API key
-```
-BLINDFOLD_API_KEY=sk-***
-```
+1. Sign up at [blindfold.dev](https://www.blindfold.dev/)
+2. Get your API key at [app.blindfold.dev/api-keys](https://app.blindfold.dev/api-keys)
+3. Set environment variable: `BLINDFOLD_API_KEY=sk-***`
 
 ```python
-# With API key - auto-switches to NLP-powered API
+# With API key — auto-switches to NLP-powered API
 client = Blindfold(api_key="sk-...")
-
-# Now detects names, addresses, organizations, and more
 result = client.detect("John Smith lives at 123 Oak Street")
 ```
 
-### Initialization
+## Initialization
 
 ```python
 from blindfold import Blindfold
 
-# Local mode (no API key) - regex-based detection
+# Local mode (no API key) — regex-based detection
 client = Blindfold()
 
-# API mode (with API key) - NLP-powered detection
+# API mode (with API key) — NLP-powered detection
 client = Blindfold(api_key="sk-...")
 
 # Force local mode even with an API key (useful for latency-critical paths)
 client = Blindfold(api_key="sk-...", mode="local")
 ```
+
+## Operations
 
 ### Tokenize (Reversible)
 
@@ -74,9 +100,9 @@ Replace sensitive data with reversible tokens (e.g., `<Person_1>`).
 ```python
 response = client.tokenize(
     text="Contact John Doe at john@example.com",
-    policy="gdpr_eu",  # Optional: Use a pre-configured policy (e.g., 'hipaa_us', 'basic')
-    entities=["person", "email address"],  # Optional: Filter specific entities
-    score_threshold=0.4  # Optional: Set confidence threshold
+    policy="gdpr_eu",  # Optional: 'hipaa_us', 'basic', 'pci_dss', 'strict'
+    entities=["person", "email address"],  # Optional: filter entities
+    score_threshold=0.4  # Optional: confidence threshold
 )
 
 print(response.text)
@@ -88,22 +114,23 @@ print(response.mapping)
 
 ### Detokenize
 
-Restore original values from tokens.
-
-**⚡ Note:** Detokenization is performed **client-side** for better performance, security, and offline support. No API call is made.
+Restore original values from tokens. Runs **client-side** — no API call.
 
 ```python
-# Runs locally - no API call!
 original = client.detokenize(
     text="AI response for <Person_1>",
     mapping=response.mapping
 )
-
 print(original.text)
 # "AI response for John Doe"
+```
 
-print(original.replacements_made)
-# 1
+### Redact
+
+Permanently remove sensitive data.
+
+```python
+response = client.redact("My password is secret123")
 ```
 
 ### Mask
@@ -117,19 +144,8 @@ response = client.mask(
     chars_to_show=4,
     from_end=True
 )
-
 print(response.text)
 # "Credit card: ***************3456"
-```
-
-### Redact
-
-Permanently remove sensitive data.
-
-```python
-response = client.redact(
-    text="My password is secret123"
-)
 ```
 
 ### Hash
@@ -144,26 +160,6 @@ response = client.hash(
 )
 ```
 
-### Synthesize
-
-Replace real data with realistic fake data. Works locally with format-preserving generation (no API key needed), or with NLP-powered synthesis via the API.
-
-```python
-# Works offline - no API key required
-client = Blindfold()
-response = client.synthesize("Email john@acme.com, SSN 123-45-6789")
-print(response.text)
-# "Email user3a9f1b2c@example.com, SSN 847-29-3156" (format-preserving)
-
-# With API key - NLP-powered synthesis (names, addresses, etc.)
-response = client.synthesize(
-    text="John lives in New York",
-    language="en"
-)
-print(response.text)
-# "Michael lives in Boston" (example)
-```
-
 ### Encrypt
 
 Encrypt sensitive data using AES (reversible with key).
@@ -173,6 +169,23 @@ response = client.encrypt(
     text="Secret message",
     encryption_key="your-secure-key-min-16-chars"
 )
+```
+
+### Synthesize
+
+Replace real data with realistic fake data. Works offline with format-preserving generation.
+
+```python
+# Works offline — no API key required
+client = Blindfold()
+response = client.synthesize("Email john@acme.com, SSN 123-45-6789")
+print(response.text)
+# "Email user3a9f1b2c@example.com, SSN 847-29-3156"
+
+# With API key — NLP-powered synthesis (names, addresses, etc.)
+response = client.synthesize("John lives in New York", language="en")
+print(response.text)
+# "Michael lives in Boston"
 ```
 
 ## Batch Processing
@@ -197,8 +210,6 @@ All methods have batch variants: `tokenize_batch`, `detect_batch`, `redact_batch
 
 ## Async Usage
 
-The SDK also supports asyncio:
-
 ```python
 import asyncio
 from blindfold import AsyncBlindfold
@@ -208,7 +219,7 @@ async def main():
         response = await client.tokenize("Hello John")
         print(response.text)
 
-        # Note: detokenize is also synchronous in async client (no await)
+        # detokenize is synchronous — no await needed
         original = client.detokenize(response.text, response.mapping)
         print(original.text)
 
@@ -237,8 +248,6 @@ print(redacted_text)
 
 ### Multi-locale support
 
-Enable detection for different regions:
-
 ```python
 # US + EU entities
 scanner = PIIScanner(locales=["us", "eu"])
@@ -259,113 +268,7 @@ scanner = PIIScanner(locales=["us", "eu", "uk"])
 scanner = PIIScanner(entities=[EntityType.EMAIL, EntityType.CREDIT_CARD])
 ```
 
-### Supported local entity types
-
-| Entity Type | Locale | Validation |
-|---|---|---|
-| Email Address | Universal | RFC 5322 pattern |
-| Credit Card Number | Universal | Luhn checksum |
-| Phone Number | Universal | Format + digit count |
-| IP Address (v4/v6) | Universal | Octet range |
-| URL | Universal | Pattern |
-| MAC Address | Universal | Pattern |
-| Date of Birth | Universal | Context-required |
-| CVV/CVC | Universal | Context-required |
-| Social Security Number | US | Format rules + context |
-| Driver's License | US | Context-required |
-| US Passport | US | Context-required |
-| Tax ID / EIN | US | Prefix validation + context |
-| ZIP Code | US | Context-required |
-| IBAN | EU | ISO 7064 mod-97 checksum |
-| Postal Code | EU | DE/FR/NL patterns |
-| VAT ID | EU | Country prefix + format |
-| UK NI Number | UK | Format validation |
-| UK NHS Number | UK | Modulus-11 checksum |
-| UK Postcode | UK | Pattern |
-| UK Passport | UK | Context-required |
-| German Personal ID | DE | Context-required |
-| German Tax ID | DE | Check digit |
-| French National ID (NIR) | FR | Check digit |
-| Spanish DNI | ES | Letter validation |
-| Spanish NIE | ES | Letter validation |
-| Italian Codice Fiscale | IT | Check digit |
-| Portuguese NIF | PT | Check digit |
-| Polish PESEL | PL | Check digit |
-| Polish NIP | PL | Check digit |
-| Czech Birth Number | CZ | Modulus validation |
-| Czech ICO (Company ID) | CZ | Mod-11 weighted checksum |
-| Czech DIC (Tax/VAT ID) | CZ | ICO checksum / mod-11 |
-| Czech Bank Account | CZ | Mod-11 weighted checksum |
-| Slovak Birth Number | SK | Modulus validation |
-| Dutch BSN | NL | Modulus-11 check |
-| Romanian CNP | RO | Check digit |
-| Danish CPR | DK | Date validation |
-| Swedish Personnummer | SE | Luhn algorithm |
-| Norwegian Birth Number | NO | Check digit |
-| Russian INN | RU | Check digit |
-| Russian SNILS | RU | Check digit |
-| Brazilian CPF | BR | Check digit |
-| Brazilian CNPJ | BR | Check digit |
-| US ITIN | US | Format validation |
-| UK UTR | UK | Mod-11 checksum |
-| French SIREN | FR | Luhn checksum |
-| Spanish NSS | ES | Mod-97 checksum |
-| Spanish CIF | ES | Custom checksum |
-| Italian Partita IVA | IT | Luhn-like checksum |
-| Polish REGON | PL | Mod-11 checksum |
-| Slovak ICO | SK | Mod-11 weighted checksum |
-| Slovak DIC | SK | Mod-11 divisibility |
-| Romanian CUI | RO | Mod-11 checksum |
-| Danish CVR | DK | Mod-11 checksum |
-| Swedish Organisationsnummer | SE | Luhn algorithm |
-| Norwegian Organisasjonsnummer | NO | Mod-11 checksum |
-| Belgian National Number | BE | Mod-97 checksum |
-| Belgian Enterprise Number | BE | Mod-97 checksum |
-| Austrian SVNR | AT | Mod-11 checksum |
-| Irish PPS Number | IE | Mod-23 checksum |
-| Finnish HETU | FI | Mod-31 checksum |
-| Finnish Y-tunnus | FI | Mod-11 checksum |
-| Hungarian Tax ID | HU | Mod-11 checksum |
-| Hungarian TAJ | HU | Mod-10 checksum |
-| Bulgarian EGN | BG | Mod-11 checksum |
-| Croatian OIB | HR | ISO 7064 MOD 11,2 |
-| Slovenian EMSO | SI | Mod-11 checksum |
-| Slovenian Tax Number | SI | Mod-11 checksum |
-| Lithuanian Personal Code | LT | Dual-pass mod-11 |
-| Latvian Personal Code | LV | Weighted checksum |
-| Estonian Personal Code | EE | Dual-pass mod-11 |
-| Canadian SIN | CA | Luhn checksum |
-| Swiss AHV | CH | EAN-13 checksum |
-| Australian TFN | AU | Mod-11 checksum |
-| Australian Medicare | AU | Mod-10 checksum |
-| New Zealand IRD | NZ | Dual-pass mod-11 |
-| Indian Aadhaar | IN | Verhoeff algorithm |
-| Indian PAN | IN | Format validation |
-| Japanese My Number | JP | Mod-11 checksum |
-| Korean RRN | KR | Weighted checksum |
-| South African ID | ZA | Luhn checksum |
-| Turkish Kimlik | TR | Custom dual check |
-| Israeli ID | IL | Luhn checksum |
-| Argentine CUIT | AR | Mod-11 checksum |
-| Chilean RUT | CL | Mod-11 with K |
-| Colombian NIT | CO | Mod-11 prime weights |
-
-> Need names, addresses, organizations, and 60+ entity types? [Add your API key](#3-upgrade-to-blindfold-api-optional) to unlock NLP-powered detection.
-
-## Configuration
-
-### Entity Types (API mode)
-
-With an API key, all local entity types are available plus:
-- `person`
-- `address`
-- `organization`
-- `medical condition`
-- And 50+ more entity types
-
-### Error Handling
-
-The SDK raises specific exceptions:
+## Error Handling
 
 ```python
 from blindfold.errors import AuthenticationError, APIError, NetworkError
@@ -382,3 +285,99 @@ except NetworkError:
     # Handle network issues
     pass
 ```
+
+<details>
+<summary><strong>Supported local entity types (80+)</strong></summary>
+
+| Entity Type | Locale | Validation |
+|---|---|---|
+| Email Address | Universal | RFC 5322 pattern |
+| Credit Card Number | Universal | Luhn checksum |
+| Phone Number | Universal | Format + digit count |
+| IP Address (v4/v6) | Universal | Octet range |
+| URL | Universal | TLD validation |
+| MAC Address | Universal | Pattern |
+| Date of Birth | Universal | Context-required |
+| CVV/CVC | Universal | Context-required |
+| Social Security Number | US | Format rules + context |
+| Driver's License | US | Multi-state formats + context |
+| US Passport | US | Context-required |
+| Tax ID / EIN | US | Prefix validation + context |
+| ZIP Code | US | Context-required + validator |
+| US ITIN | US | Format validation |
+| IBAN | EU | ISO 7064 mod-97 checksum |
+| Postal Code | EU | DE/FR/NL patterns |
+| VAT ID | EU | Country prefix + format |
+| UK NI Number | UK | Format validation |
+| UK NHS Number | UK | Modulus-11 checksum |
+| UK Postcode | UK | Pattern |
+| UK Passport | UK | Context-required |
+| UK UTR | UK | Mod-11 checksum |
+| German Personal ID | DE | Context-required |
+| German Tax ID | DE | Check digit |
+| French National ID (NIR) | FR | Check digit |
+| French SIREN | FR | Luhn checksum |
+| Spanish DNI | ES | Letter validation |
+| Spanish NIE | ES | Letter validation |
+| Spanish NSS | ES | Mod-97 checksum |
+| Spanish CIF | ES | Custom checksum |
+| Italian Codice Fiscale | IT | Check digit |
+| Italian Partita IVA | IT | Luhn-like checksum |
+| Portuguese NIF | PT | Check digit |
+| Dutch BSN | NL | Modulus-11 check |
+| Belgian National Number | BE | Mod-97 checksum |
+| Belgian Enterprise Number | BE | Mod-97 checksum |
+| Austrian SVNR | AT | Mod-11 checksum |
+| Swiss AHV | CH | EAN-13 checksum |
+| Irish PPS Number | IE | Mod-23 checksum |
+| Polish PESEL | PL | Check digit |
+| Polish NIP | PL | Check digit |
+| Polish REGON | PL | Mod-11 checksum |
+| Czech Birth Number | CZ | Modulus validation |
+| Czech ICO (Company ID) | CZ | Mod-11 weighted checksum |
+| Czech DIC (Tax/VAT ID) | CZ | ICO checksum / mod-11 |
+| Czech Bank Account | CZ | Mod-11 weighted checksum |
+| Slovak Birth Number | SK | Modulus validation |
+| Slovak ICO | SK | Mod-11 weighted checksum |
+| Slovak DIC | SK | Mod-11 divisibility |
+| Romanian CNP | RO | Check digit |
+| Romanian CUI | RO | Mod-11 checksum |
+| Danish CPR | DK | Date validation |
+| Danish CVR | DK | Mod-11 checksum |
+| Swedish Personnummer | SE | Luhn algorithm |
+| Swedish Organisationsnummer | SE | Luhn algorithm |
+| Norwegian Birth Number | NO | Check digit |
+| Norwegian Organisasjonsnummer | NO | Mod-11 checksum |
+| Finnish HETU | FI | Mod-31 checksum |
+| Finnish Y-tunnus | FI | Mod-11 checksum |
+| Hungarian Tax ID | HU | Mod-11 checksum |
+| Hungarian TAJ | HU | Mod-10 checksum |
+| Bulgarian EGN | BG | Mod-11 checksum |
+| Croatian OIB | HR | ISO 7064 MOD 11,2 |
+| Slovenian EMSO | SI | Mod-11 checksum |
+| Slovenian Tax Number | SI | Mod-11 checksum |
+| Lithuanian Personal Code | LT | Dual-pass mod-11 |
+| Latvian Personal Code | LV | Weighted checksum |
+| Estonian Personal Code | EE | Dual-pass mod-11 |
+| Russian INN | RU | Check digit |
+| Russian SNILS | RU | Check digit |
+| Canadian SIN | CA | Luhn checksum |
+| Australian TFN | AU | Mod-11 checksum |
+| Australian Medicare | AU | Mod-10 checksum |
+| New Zealand IRD | NZ | Dual-pass mod-11 |
+| Indian Aadhaar | IN | Verhoeff algorithm |
+| Indian PAN | IN | Format validation |
+| Japanese My Number | JP | Mod-11 checksum |
+| Korean RRN | KR | Weighted checksum |
+| South African ID | ZA | Luhn checksum |
+| Turkish Kimlik | TR | Custom dual check |
+| Israeli ID | IL | Luhn checksum |
+| Brazilian CPF | BR | Check digit |
+| Brazilian CNPJ | BR | Check digit |
+| Argentine CUIT | AR | Mod-11 checksum |
+| Chilean RUT | CL | Mod-11 with K |
+| Colombian NIT | CO | Mod-11 prime weights |
+
+> Add your [API key](#upgrade-to-blindfold-api-optional) to unlock names, addresses, organizations, and 60+ additional entity types with NLP-powered detection.
+
+</details>
