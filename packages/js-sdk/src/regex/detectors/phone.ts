@@ -5,6 +5,7 @@ import { EntityType } from '../entities'
 import { registerUniversal } from '../registry'
 
 const DATE_LIKE = /^\d{1,2}[-./]\d{1,2}[-./]\d{2,4}$/
+const SSN_LIKE = /^\d{3}[-.\s]\d{2}[-.\s]\d{4}$/
 
 function phoneLengthCheck(text: string): boolean {
   let digits = 0
@@ -14,6 +15,8 @@ function phoneLengthCheck(text: string): boolean {
   if (digits < 7 || digits > 15) return false
   // Reject date-like patterns (e.g., 03-15-1990) to avoid stealing DOB matches
   if (DATE_LIKE.test(text)) return false
+  // Reject SSN-like patterns (e.g., 044-10-7757) to avoid stealing SSN matches
+  if (SSN_LIKE.test(text)) return false
   return true
 }
 

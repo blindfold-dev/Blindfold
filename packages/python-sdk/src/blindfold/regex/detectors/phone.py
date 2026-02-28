@@ -7,6 +7,7 @@ from ..entities import EntityType
 from ..registry import register_universal
 
 _DATE_LIKE = re.compile(r"^\d{1,2}[-./]\d{1,2}[-./]\d{2,4}$")
+_SSN_LIKE = re.compile(r"^\d{3}[-.\s]\d{2}[-.\s]\d{4}$")
 
 
 def _phone_length_check(text: str) -> bool:
@@ -16,6 +17,9 @@ def _phone_length_check(text: str) -> bool:
         return False
     # Reject date-like patterns (e.g., 03-15-1990) to avoid stealing DOB matches
     if _DATE_LIKE.match(text):
+        return False
+    # Reject SSN-like patterns (e.g., 044-10-7757) to avoid stealing SSN matches
+    if _SSN_LIKE.match(text):
         return False
     return True
 

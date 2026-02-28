@@ -23,9 +23,10 @@ class SsnDetector extends Detector {
   contextKeywords = [
     'ssn', 'social security', 'social sec', 'ss#', 'ss #',
     'social', 'tax id', 'taxpayer', 'tin',
+    'social number', 'soc number', 'socialnum',
   ]
   contextRequired = false
-  contextWindow = 50
+  contextWindow = 100
 
   iterMatches(text: string): PIIMatch[] {
     const results: PIIMatch[] = []

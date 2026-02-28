@@ -32,9 +32,10 @@ class SsnDetector(RegexDetector):
     context_keywords = [
         "ssn", "social security", "social sec", "ss#", "ss #",
         "social", "tax id", "taxpayer", "tin",
+        "social number", "soc number", "socialnum",
     ]
     context_required = False
-    context_window = 50
+    context_window = 100
 
     # Primary pattern (with separators) — used by base class pre_check
     pattern = _SSN_WITH_SEP
