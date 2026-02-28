@@ -66,6 +66,47 @@ describe('Date of Birth Detection', () => {
     expect(dob(scanner.detect('birthday 1st Jan 2000')).length).toBe(1)
   })
 
+  // ISO with timestamp
+  test('ISO with T timestamp', () => {
+    const matches = dob(scanner.detect('DOB: 1960-08-01T00:00:00'))
+    expect(matches.length).toBe(1)
+    expect(matches[0].text).toContain('1960-08-01')
+  })
+
+  test('ISO timestamp born on', () => {
+    expect(dob(scanner.detect('born on 1995-03-07T00:00:00')).length).toBe(1)
+  })
+
+  // Month DDth ordinal
+  test('Month 21st ordinal', () => {
+    expect(dob(scanner.detect('DOB: July 21st, 1998')).length).toBe(1)
+  })
+
+  test('Month 22nd ordinal', () => {
+    expect(dob(scanner.detect('birthday October 22nd, 1986')).length).toBe(1)
+  })
+
+  test('Month 3rd ordinal', () => {
+    expect(dob(scanner.detect('dob: December 3rd, 1968')).length).toBe(1)
+  })
+
+  test('Month 12th ordinal', () => {
+    expect(dob(scanner.detect('born on November 12th, 2016')).length).toBe(1)
+  })
+
+  // Month/YY abbreviated
+  test('Month/YY slash', () => {
+    expect(dob(scanner.detect('DOB: May/58')).length).toBe(1)
+  })
+
+  test('Month-YY dash', () => {
+    expect(dob(scanner.detect('born on August-72')).length).toBe(1)
+  })
+
+  test('full Month/YY', () => {
+    expect(dob(scanner.detect('date of birth: November/85')).length).toBe(1)
+  })
+
   // Context keywords
   test('multilingual French keyword', () => {
     expect(dob(scanner.detect('date de naissance: 15/03/1990')).length).toBe(1)

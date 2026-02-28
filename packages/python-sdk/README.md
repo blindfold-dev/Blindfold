@@ -10,7 +10,7 @@ Detect, redact, tokenize, and mask PII in Python. 80+ entity types, 30+ countrie
 - **Works offline, zero dependencies** — No API key needed for local detection. No network calls. No external packages.
 - **80+ PII entity types** across 30+ countries with checksum validation (Luhn, IBAN mod-97, Verhoeff, etc.)
 - **100x faster than Presidio** — 0.3s vs 32s on 3,000 samples ([benchmark](https://blindfold.dev/blog/pii-detection-benchmark))
-- **Higher accuracy** — F1 56.2% vs Presidio 38.7% on AI4Privacy multilingual benchmark
+- **Higher accuracy** — F1 58.6% vs Presidio 38.8% on AI4Privacy multilingual benchmark
 - **8 operations**: detect, redact, tokenize, detokenize, mask, hash, encrypt, synthesize
 - **Compliance-ready** — Built-in GDPR, HIPAA, PCI-DSS policies
 - **Optional NLP upgrade** — Add API key to detect names, addresses, organizations (60+ additional entities)

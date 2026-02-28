@@ -10,9 +10,9 @@ const MONTHS =
   'jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)'
 
 function validDate(text: string): boolean {
-  // Word-based dates are already well-constrained by pattern
-  if (/[a-zA-Z]/.test(text)) return true
-  // For numeric dates, ensure we have 3 digit groups
+  // Word-based dates (month name present) are well-constrained by pattern
+  if (/[a-zA-Z]/i.test(text.replace(/T/g, ''))) return true
+  // For numeric dates, ensure we have at least 3 digit groups
   const groups = text.match(/\d+/g)
   return groups !== null && groups.length >= 3
 }
@@ -44,14 +44,17 @@ class DateOfBirthDetector extends RegexDetector {
       // DD/MM/YY (2-digit year, day 13-31 first)
       '\\b(?:1[3-9]|2\\d|3[01])[/\\-.](?:0?[1-9]|1[0-2])[/\\-.]\\d{2}\\b' +
       '|' +
-      // YYYY-MM-DD (ISO)
-      '\\b(?:19|20)\\d{2}[/\\-.](?:0?[1-9]|1[0-2])[/\\-.](?:0?[1-9]|[12]\\d|3[01])\\b' +
+      // YYYY-MM-DD (ISO, with optional T timestamp)
+      '\\b(?:19|20)\\d{2}[/\\-.](?:0?[1-9]|1[0-2])[/\\-.](?:0?[1-9]|[12]\\d|3[01])(?:T\\d{2}:\\d{2}:\\d{2})?\\b' +
       '|' +
-      // Month DD, YYYY
-      '\\b' + MONTHS + '\\s+\\d{1,2},?\\s+(?:19|20)\\d{2}\\b' +
+      // Month DDth, YYYY (with optional ordinal suffix)
+      '\\b' + MONTHS + '\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s+(?:19|20)\\d{2}\\b' +
       '|' +
       // DD Month YYYY (with optional ordinal suffix)
-      '\\b\\d{1,2}(?:st|nd|rd|th)?\\s+' + MONTHS + ',?\\s+(?:19|20)\\d{2}\\b',
+      '\\b\\d{1,2}(?:st|nd|rd|th)?\\s+' + MONTHS + ',?\\s+(?:19|20)\\d{2}\\b' +
+      '|' +
+      // Month/YY (abbreviated — e.g., "May/58", "August/72")
+      '\\b' + MONTHS + '[/\\-.]\\d{2}\\b',
     'gi'
   )
 }

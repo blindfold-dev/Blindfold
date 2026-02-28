@@ -80,6 +80,53 @@ class TestDDMonthYYYY:
         assert len(matches) == 1
 
 
+class TestISOTimestamp:
+    def test_iso_with_timestamp(self, scanner):
+        matches = _dob(scanner.detect("DOB: 1960-08-01T00:00:00"))
+        assert len(matches) == 1
+        assert "1960-08-01T00:00:00" in matches[0].text
+
+    def test_iso_timestamp_with_born(self, scanner):
+        matches = _dob(scanner.detect("born on 1995-03-07T00:00:00"))
+        assert len(matches) == 1
+
+
+class TestMonthOrdinal:
+    def test_month_ordinal_st(self, scanner):
+        matches = _dob(scanner.detect("DOB: July 21st, 1998"))
+        assert len(matches) == 1
+
+    def test_month_ordinal_nd(self, scanner):
+        matches = _dob(scanner.detect("birthday October 22nd, 1986"))
+        assert len(matches) == 1
+
+    def test_month_ordinal_rd(self, scanner):
+        matches = _dob(scanner.detect("dob: December 3rd, 1968"))
+        assert len(matches) == 1
+
+    def test_month_ordinal_th(self, scanner):
+        matches = _dob(scanner.detect("born on November 12th, 2016"))
+        assert len(matches) == 1
+
+
+class TestMonthYY:
+    def test_month_slash_yy(self, scanner):
+        matches = _dob(scanner.detect("DOB: May/58"))
+        assert len(matches) == 1
+
+    def test_month_dash_yy(self, scanner):
+        matches = _dob(scanner.detect("born on August-72"))
+        assert len(matches) == 1
+
+    def test_full_month_slash_yy(self, scanner):
+        matches = _dob(scanner.detect("date of birth: November/85"))
+        assert len(matches) == 1
+
+    def test_abbreviated_month_slash_yy(self, scanner):
+        matches = _dob(scanner.detect("DOB: Jan/90"))
+        assert len(matches) == 1
+
+
 class TestContextKeywords:
     def test_born_keyword(self, scanner):
         matches = _dob(scanner.detect("She was born 03/15/1990"))
