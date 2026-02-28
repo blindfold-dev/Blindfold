@@ -86,7 +86,8 @@ class CreditCardDetector(RegexDetector):
                 continue
             # Require CC context keywords
             window_start = max(0, start - 100)
-            window = text[window_start:start].lower()
+            lower = getattr(self, '_text_lower', None) or text.lower()
+            window = lower[window_start:start]
             if not any(kw in window for kw in _CC_CONTEXT):
                 continue
             results.append(PIIMatch(

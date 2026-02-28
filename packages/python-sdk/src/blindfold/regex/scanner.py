@@ -98,9 +98,15 @@ class PIIScanner:
         if entities:
             entity_set = set(entities)
             detectors = [d for d in detectors if d.entity_type.value in entity_set]
+        has_digit = any(c.isdigit() for c in text)
+        text_lower = text.lower()
         all_matches: List[PIIMatch] = []
         for detector in detectors:
+            if detector.needs_digit and not has_digit:
+                continue
+            detector._text_lower = text_lower
             all_matches.extend(detector.iter_matches(text))
+            detector._text_lower = None
         return self._deduplicate(all_matches)
 
     def redact(

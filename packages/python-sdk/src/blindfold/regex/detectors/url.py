@@ -40,6 +40,7 @@ def _url_valid_tld(text: str) -> bool:
 class UrlDetector(RegexDetector):
     entity_type = EntityType.URL
     score = 0.85
+    needs_digit = False
     pattern = re.compile(
         r"https?://"
         r"(?:[\w\-]+\.)+[a-zA-Z]{2,}"

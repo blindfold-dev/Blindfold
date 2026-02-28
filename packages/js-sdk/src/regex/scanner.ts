@@ -61,9 +61,16 @@ export class PIIScanner {
       const entitySet = new Set(entities)
       detectors = detectors.filter((d) => entitySet.has(d.entityType))
     }
+    const hasDigit = /\d/.test(text)
+    const textLower = text.toLowerCase()
     const allMatches: PIIMatch[] = []
     for (const detector of detectors) {
+      if (detector.needsDigit && !hasDigit) {
+        continue
+      }
+      ;(detector as any)._textLower = textLower
       allMatches.push(...detector.iterMatches(text))
+      ;(detector as any)._textLower = null
     }
     return this.deduplicate(allMatches)
   }

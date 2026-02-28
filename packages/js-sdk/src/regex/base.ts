@@ -10,6 +10,7 @@ export abstract class Detector {
   contextRequired = false
   contextWindow = 50
   locale = ''
+  needsDigit = true
 
   abstract iterMatches(text: string): PIIMatch[]
 
@@ -19,7 +20,8 @@ export abstract class Detector {
       return true
     }
     const windowStart = Math.max(0, start - this.contextWindow)
-    const window = text.slice(windowStart, start).toLowerCase()
+    const lower = (this as any)._textLower || text.toLowerCase()
+    const window = lower.slice(windowStart, start)
     return this.contextKeywords.some((kw) => window.includes(kw))
   }
 }

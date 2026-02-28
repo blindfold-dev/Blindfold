@@ -34,6 +34,7 @@ function urlValidTld(text: string): boolean {
 class UrlDetector extends RegexDetector {
   entityType = EntityType.URL
   score = 0.85
+  needsDigit = false
   pattern = /https?:\/\/(?:[\w\-]+\.)+[a-zA-Z]{2,}(?:\/[^\s<>"')\]]*)?/gi
   validator = urlValidTld
 

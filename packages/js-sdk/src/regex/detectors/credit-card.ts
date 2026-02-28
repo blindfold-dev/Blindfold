@@ -74,7 +74,8 @@ class CreditCardDetector extends Detector {
       if (!luhnChecksum(matchedText)) continue
       // Require CC context keywords
       const windowStart = Math.max(0, start - 100)
-      const window = text.slice(windowStart, start).toLowerCase()
+      const lower = (this as any)._textLower || text.toLowerCase()
+      const window = lower.slice(windowStart, start)
       if (!CC_CONTEXT.some((kw) => window.includes(kw))) continue
       results.push({
         entityType: this.entityType,

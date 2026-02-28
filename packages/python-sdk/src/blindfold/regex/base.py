@@ -15,6 +15,7 @@ class Detector:
     context_required: bool = False
     context_window: int = 50
     locale: str = ""
+    needs_digit: bool = True
 
     def iter_matches(self, text: str) -> List[PIIMatch]:
         raise NotImplementedError
@@ -24,7 +25,8 @@ class Detector:
         if not self.context_keywords:
             return True
         window_start = max(0, start - self.context_window)
-        window = text[window_start:start].lower()
+        lower = getattr(self, '_text_lower', None) or text.lower()
+        window = lower[window_start:start]
         return any(kw in window for kw in self.context_keywords)
 
 
