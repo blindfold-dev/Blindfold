@@ -39,6 +39,8 @@ blindfold mask "Card: 4532-1234-5678-9010"
 2. Go to **API Keys** and create a new key
 3. Run `blindfold config set-key your_api_key`
 
+> **Local mode:** When no API key is configured, the CLI uses local regex-based detection with 80+ entity types. No data leaves your machine. Add an API key to unlock NLP-powered detection (names, addresses, organizations) via the Cloud API.
+
 ## Commands
 
 | Command | Description |
