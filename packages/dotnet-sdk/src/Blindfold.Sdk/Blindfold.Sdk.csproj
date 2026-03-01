@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0;netstandard2.1</TargetFrameworks>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>Blindfold.Sdk</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Blindfold</Authors>
+    <Company>Blindfold</Company>
+    <Description>Official .NET SDK for the Blindfold PII detection and anonymization API</Description>
+    <PackageTags>pii;privacy;anonymization;blindfold;gdpr;hipaa</PackageTags>
+    <RepositoryUrl>https://github.com/blindfold-dev/blindfold-dotnet</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <InternalsVisibleTo>Blindfold.Sdk.Tests</InternalsVisibleTo>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Policies\policies.json" />
+  </ItemGroup>
+
+</Project>
