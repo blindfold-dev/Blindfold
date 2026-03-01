@@ -175,7 +175,7 @@ async def call_detect_api(
                     body = r.json()
                     return [
                         Span(start=e["start"], end=e["end"], label=e["type"])
-                        for e in body.get("entities", [])
+                        for e in body.get("detected_entities", [])
                     ]
                 if r.status_code == 429:
                     delay = RETRY_BASE_DELAY * (2 ** attempt)
