@@ -1,6 +1,19 @@
-# @blindfold/cli
+# Blindfold CLI
 
-CLI for [Blindfold](https://blindfold.dev) — detect and protect PII from the terminal.
+Detect, redact, tokenize, and mask PII from the terminal. 80+ entity types, 30+ countries, works offline with zero dependencies.
+
+[![npm version](https://img.shields.io/npm/v/@blindfold/cli)](https://www.npmjs.com/package/@blindfold/cli)
+[![License](https://img.shields.io/npm/l/@blindfold/cli)](https://github.com/blindfold-dev/blindfold/blob/main/LICENSE)
+
+## Why Blindfold CLI?
+
+- **Works offline, zero dependencies** — No API key needed for local detection. No network calls. No data leaves your machine.
+- **80+ PII entity types** across 30+ countries with checksum validation (Luhn, IBAN mod-97, Verhoeff, etc.)
+- **Run on your own infrastructure** — Install locally, in CI/CD pipelines, or on air-gapped servers. Everything runs on your machine.
+- **8 operations**: detect, redact, tokenize, detokenize, mask, hash, encrypt, synthesize
+- **Compliance-ready** — Built-in GDPR, HIPAA, PCI-DSS policies
+- **Optional NLP upgrade** — Add API key to detect names, addresses, organizations (60+ additional entities)
+- **Pipe-friendly** — stdin, file input, JSON output, quiet mode for scripting
 
 ## Install
 
@@ -8,38 +21,64 @@ CLI for [Blindfold](https://blindfold.dev) — detect and protect PII from the t
 npm install -g @blindfold/cli
 ```
 
-Or run directly with npx:
+Or run directly with npx (no install):
 
 ```bash
 npx -y @blindfold/cli detect "Contact John at john@example.com"
 ```
 
-## Quick Start
+## Quick Start (no API key needed)
 
 ```bash
-# Save your API key
-blindfold config set-key your_api_key
+# Detect PII locally — no API key, no network call
+blindfold detect "Email john@acme.com, SSN 123-45-6789"
+# Email Address: john@acme.com (score: 0.95)
+# Social Security Number: 123-45-6789 (score: 1.0)
 
-# Detect PII
-blindfold detect "Contact John at john@example.com"
+# Redact PII locally
+blindfold redact "Email john@acme.com, SSN 123-45-6789"
+# "Email, SSN"
 
 # Tokenize (reversible)
 blindfold tokenize "Patient: Sarah Johnson, SSN: 123-45-6789"
-
-# Redact (permanent)
-blindfold redact "Call me at 555-0123"
+# "Patient: <Person_1>, SSN: <Social Security Number_1>"
 
 # Mask (partial)
 blindfold mask "Card: 4532-1234-5678-9010"
+# "Card: ***************9010"
 ```
 
-## Get an API Key
+Everything above runs **100% locally**. No API key. No network calls. No data leaves your machine.
 
-1. Sign up at [app.blindfold.dev](https://app.blindfold.dev)
-2. Go to **API Keys** and create a new key
-3. Run `blindfold config set-key your_api_key`
+## Use with `--local` flag
 
-> **Local mode:** When no API key is configured, the CLI uses local regex-based detection with 80+ entity types. No data leaves your machine. Add an API key to unlock NLP-powered detection (names, addresses, organizations) via the Cloud API.
+When you have an API key configured but want to force local-only processing:
+
+```bash
+# Force local mode — no data sent to any API
+blindfold detect --local "SSN 123-45-6789"
+
+# Useful for air-gapped environments or strict data residency
+blindfold redact --local --file sensitive-data.txt
+```
+
+## Upgrade to Blindfold API (optional)
+
+For names, addresses, organizations, and 60+ entity types, add your API key:
+
+1. Sign up at [blindfold.dev](https://www.blindfold.dev/)
+2. Get your API key at [app.blindfold.dev/api-keys](https://app.blindfold.dev/api-keys)
+3. Save it:
+
+```bash
+blindfold config set-key your_api_key
+# or set environment variable: BLINDFOLD_API_KEY=sk-***
+```
+
+```bash
+# With API key — auto-switches to NLP-powered detection
+blindfold detect "John Smith lives at 123 Oak Street"
+```
 
 ## Commands
 
@@ -67,6 +106,9 @@ echo "Patient SSN: 123-45-6789" | blindfold redact
 
 # Read from file
 blindfold tokenize --file patient-notes.txt
+
+# Batch processing from file (one text per line)
+blindfold detect --batch --file records.txt
 ```
 
 ## Output Formats
@@ -91,6 +133,9 @@ All PII commands accept:
 -e, --entities <types>    Comma-separated entity types
 -t, --threshold <n>       Minimum confidence score (0.0-1.0)
 -f, --file <path>         Read input from file
+    --batch               Process file line-by-line
+    --local               Force local mode (no API calls)
+    --locales <codes>     Locale codes (e.g., us,eu,uk,de)
 ```
 
 Global options:
@@ -98,6 +143,7 @@ Global options:
 ```
 --api-key <key>           Override API key
 --base-url <url>          Override API base URL
+--region <region>         Data residency region (eu, us)
 --json                    Output raw JSON
 --quiet                   Output only transformed text
 ```
@@ -149,7 +195,7 @@ blindfold config path                    # Print config file path
 ## Examples
 
 ```bash
-# CI/CD: redact logs before storage
+# CI/CD: redact logs before storage (local, no API key)
 cat app.log | blindfold redact --quiet --policy strict > clean.log
 
 # Script: get entities as JSON
@@ -157,6 +203,12 @@ entities=$(blindfold detect --json "John Doe, SSN 123-45-6789")
 
 # HIPAA compliance check
 blindfold detect --policy hipaa_us --file patient-records.txt
+
+# Air-gapped server: force local mode
+blindfold redact --local --file sensitive-export.csv --quiet > clean.csv
+
+# Process EU data with EU-specific entities
+blindfold detect --locales eu,de,fr --file eu-customer-data.txt
 ```
 
 ## License
