@@ -14,7 +14,7 @@ class IePpsDetector extends RegexDetector {
     'personal public service',
     'revenue',
   ]
-  contextRequired = true
+  contextRequired = false
   contextWindow = 50
 
   pattern = /\b\d{7}[A-Z]{1,2}\b/gi

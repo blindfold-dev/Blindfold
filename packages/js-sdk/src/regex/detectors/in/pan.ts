@@ -9,7 +9,7 @@ class InPanDetector extends RegexDetector {
   entityType = EntityType.IN_PAN
   score = 0.85
   contextKeywords = ['pan', 'permanent account number', 'income tax', 'pan card']
-  contextRequired = true
+  contextRequired = false
 
   // AAAAA0000A format
   pattern = /\b[A-Z]{3}[ABCFGHLJPT][A-Z]\d{4}[A-Z]\b/gi

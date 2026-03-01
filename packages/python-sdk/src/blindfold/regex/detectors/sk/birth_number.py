@@ -15,7 +15,7 @@ class BirthNumberDetector(RegexDetector):
     context_keywords = [
         "rodne cislo", "birth number", "rc", "rodn\u00e9 \u010d\u00edslo",
     ]
-    context_required = True
+    context_required = False
     context_window = 50
 
     # 6 digits, optional /, 3-4 digits

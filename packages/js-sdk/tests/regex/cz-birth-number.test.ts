@@ -22,7 +22,9 @@ describe('Czech Birth Number Detection', () => {
     expect(czBirthNumber(scanner.detect('Rodne cislo: 7103192746')).length).toBe(0)
   })
 
-  test('should not match without context', () => {
-    expect(czBirthNumber(scanner.detect('7103192745')).length).toBe(0)
+  test('should detect without context (strong validator)', () => {
+    const m = czBirthNumber(scanner.detect('7103192745'))
+    expect(m.length).toBe(1)
+    expect(m[0].text).toBe('7103192745')
   })
 })

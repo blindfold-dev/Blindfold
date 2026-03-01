@@ -15,7 +15,7 @@ class PpsDetector(RegexDetector):
     context_keywords = [
         "pps", "ppsn", "personal public service", "revenue",
     ]
-    context_required = True
+    context_required = False
     context_window = 50
 
     pattern = re.compile(

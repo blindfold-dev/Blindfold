@@ -15,7 +15,7 @@ class InPanDetector(RegexDetector):
     context_keywords = [
         "pan", "permanent account number", "income tax", "pan card",
     ]
-    context_required = True
+    context_required = False
     context_window = 50
 
     # AAAAA0000A format

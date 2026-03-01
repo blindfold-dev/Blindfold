@@ -41,7 +41,7 @@ public class CzBirthNumberDetector extends RegexDetector {
 
     @Override
     public boolean isContextRequired() {
-        return true;
+        return false;
     }
 
     @Override

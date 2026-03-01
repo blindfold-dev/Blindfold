@@ -32,5 +32,7 @@ class TestInvalidSkBirthNumber:
     def test_not_divisible_by_11(self, scanner):
         assert _sk_bn(scanner.detect("Rodne cislo: 7103192746")) == []
 
-    def test_no_match_without_context(self, scanner):
-        assert _sk_bn(scanner.detect("7103192745")) == []
+    def test_detected_without_context(self, scanner):
+        matches = _sk_bn(scanner.detect("7103192745"))
+        assert len(matches) == 1
+        assert matches[0].text == "7103192745"

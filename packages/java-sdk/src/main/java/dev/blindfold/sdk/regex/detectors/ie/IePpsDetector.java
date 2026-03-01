@@ -41,7 +41,7 @@ public class IePpsDetector extends RegexDetector {
 
     @Override
     public boolean isContextRequired() {
-        return true;
+        return false;
     }
 
     @Override
