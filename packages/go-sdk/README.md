@@ -5,7 +5,7 @@ Official Go SDK for the [Blindfold](https://blindfold.dev) PII detection and ano
 ## Installation
 
 ```bash
-go get github.com/blindfold-dev/blindfold-github/packages/go-sdk
+go get github.com/blindfold-dev/Blindfold/packages/go-sdk
 ```
 
 **Zero external dependencies** — uses only the Go standard library.
@@ -20,7 +20,7 @@ import (
     "fmt"
     "log"
 
-    blindfold "github.com/blindfold-dev/blindfold-github/packages/go-sdk"
+    blindfold "github.com/blindfold-dev/Blindfold/packages/go-sdk"
 )
 
 func main() {
