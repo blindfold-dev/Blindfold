@@ -148,3 +148,67 @@ AI4PRIVACY_TO_PRESIDIO: dict[str, str | None] = {
 # Regex-detectable entity types for filtering evaluation
 REGEX_DETECTABLE_PRESIDIO = {k for k, v in PRESIDIO_TO_BLINDFOLD.items() if v is not None}
 REGEX_DETECTABLE_AI4PRIVACY = {k for k, v in AI4PRIVACY_TO_BLINDFOLD.items() if v is not None}
+
+# ---------------------------------------------------------------------------
+# AI4Privacy -> API (Title Case entity names for live API evaluation)
+# ---------------------------------------------------------------------------
+# Unlike AI4PRIVACY_TO_BLINDFOLD (regex-only), this mapping includes NER
+# entities that the API can detect via GLiNER zero-shot NER.
+
+AI4PRIVACY_TO_API: dict[str, str | None] = {
+    # Regex-detectable types (same as AI4PRIVACY_TO_BLINDFOLD)
+    "EMAIL": "Email Address",
+    "CREDITCARDNUMBER": "Credit Card Number",
+    "TELEPHONENUM": "Phone Number",
+    "PHONENUMBER": "Phone Number",
+    "ZIPCODE": "ZIP Code",
+    "SOCIALNUM": "Social Security Number",
+    "DRIVERLICENSENUM": "Driver's License",
+    "DATEOFBIRTH": "Date of Birth",
+    "IPV4": "IP Address",
+    "IPV6": "IP Address",
+    "URL": "URL",
+    "IBAN": "IBAN",
+    "MAC": "MAC Address",
+    # NER entities — detectable by API via GLiNER
+    "GIVENNAME": "Person",
+    "SURNAME": "Person",
+    "COMPANYNAME": "Organization",
+    "STREET": "Address",
+    "CITY": "Address",
+    "COUNTRY": "Address",
+    "STATE": "Address",
+    "ACCOUNTNUM": "Bank Account Number",
+    "IDCARDNUM": "National ID Number",
+    "USERNAME": "Username",
+    "PASSWORD": "Password",
+    # Not detectable by API — skip
+    "BUILDINGNUM": None,
+    "PREFIX": None,
+    "TITLE": None,
+    "SEX": None,
+    "JOBTYPE": None,
+    "JOBTITLE": None,
+    "JOBAREA": None,
+    "VEHICLEVRM": None,
+    "VEHICLEVIN": None,
+    "CURRENCYNAME": None,
+    "CURRENCYCODE": None,
+    "CURRENCYSYMBOL": None,
+    "AMOUNT": None,
+    "BITCOINADDRESS": None,
+    "ETHEREUMADDRESS": None,
+    "LITECOINADDRESS": None,
+    "MASKEDNUMBER": None,
+    "NEARBYGPSCOORDINATE": None,
+    "ORDINALDIRECTION": None,
+    "SECONDARYADDRESS": None,
+    "TIME": None,
+    "USERAGENT": None,
+}
+
+# Labels that the API can detect (for filtering ground truth)
+API_DETECTABLE_AI4PRIVACY = {k for k, v in AI4PRIVACY_TO_API.items() if v is not None}
+
+# Labels that should be merged when adjacent (same API label)
+API_MERGEABLE_LABELS = {"Person", "Address"}
