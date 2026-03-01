@@ -1,44 +1,68 @@
 # Changelog
 
-All notable changes to Blindfold SDKs will be documented in this file.
+All notable changes to the Blindfold SDKs will be documented in this file.
 
-## Python SDK
+## [1.0.0] - 2026-03-01
 
-### [1.4.0] - 2026-02-23
+First stable release of the Blindfold SDK suite across all platforms.
 
-- Add built-in regex PII scanner for offline detection (no API key required)
-- Make `api_key` parameter optional - SDK works without it using local regex detection
-- Add `mode` parameter to force local or API mode
-- Add `PIIScanner` class with support for 20+ entity types across US, EU, and UK locales
-- Add validators: Luhn (credit cards), IBAN mod-97, SSN format rules, NHS modulus-11
-- Context-required patterns for low-specificity entities (CVV, ZIP, DOB, etc.)
-- Export `PIIScanner` and `EntityType` from top-level package
+### Core PII Operations (all SDKs)
+- **Tokenize** — Replace PII with reversible tokens (`<Person_1>`, `<Email Address_1>`, etc.)
+- **Detokenize** — Restore original values from tokenized text (client-side, no API call)
+- **Detect** — Identify PII entities with confidence scores without modifying text
+- **Redact** — Permanently remove PII with configurable masking characters
+- **Mask** — Partial masking with control over visible characters, direction, and mask character
+- **Synthesize** — Replace PII with realistic synthetic data (18+ languages)
+- **Hash** — Deterministic hashing with MD5, SHA-1, or SHA-256; configurable prefix and length
+- **Encrypt** — AES encryption of detected PII with a user-provided key
 
-### [1.0.0] - 2026-02-08
+### Batch Processing
+- All 7 PII operations support batch mode via `texts` array (up to 100 items per request)
 
-- Initial release
-- Tokenize, detokenize, detect, redact, mask, synthesize, hash, encrypt methods
-- Sync (`Blindfold`) and async (`AsyncBlindfold`) clients
-- Pydantic response models
-- Comprehensive error handling
+### Local Mode (Offline PII Detection)
+- Built-in regex-based PII scanner — works without an API key
+- 70+ entity detectors across US, EU, and UK locales
+- Validators: Luhn (credit cards), IBAN mod-97, SSN format rules, NHS modulus-11
+- Context-required patterns for low-specificity entities (CVV, ZIP, DOB)
+- Configurable locales to control which country-specific patterns are active
 
-## JavaScript SDK
+### Multi-Region Support
+- EU and US data residency with automatic endpoint routing
+- Region-specific API URLs: `eu-api.blindfold.dev`, `us-api.blindfold.dev`
 
-### [1.4.0] - 2026-02-23
+### Policies
+- Built-in policies: `basic`, `strict`, `gdpr_eu`, `hipaa_us`, `pci_dss`
+- Custom policy support via JSON files
+- Entity type filtering and confidence score thresholds
 
-- Add built-in regex PII scanner for offline detection (no API key required)
-- Make `apiKey` optional in `BlindfoldConfig` - SDK works without it using local regex detection
-- Add `mode` option to force local or API mode
-- Add `PIIScanner` class with support for 20+ entity types across US, EU, and UK locales
-- Add validators: Luhn (credit cards), IBAN mod-97, SSN format rules, NHS modulus-11
-- Context-required patterns for low-specificity entities (CVV, ZIP, DOB, etc.)
-- Add `@blindfold/sdk/regex` subpath export for standalone scanner usage
-- Export `PIIScanner` and `EntityType` from main entry point
+### Python SDK (`blindfold-sdk`)
+- Synchronous (`Blindfold`) and asynchronous (`AsyncBlindfold`) clients
+- Pydantic response models with full type hints
+- Retry logic with exponential backoff
+- `pip install blindfold-sdk`
 
-### [1.0.0] - 2026-02-08
-
-- Initial release
-- Tokenize, detokenize, detect, redact, mask, synthesize, hash, encrypt methods
+### JavaScript/TypeScript SDK (`@blindfold/sdk`)
 - Full TypeScript support with type definitions
 - CommonJS and ESM builds
-- Comprehensive error handling
+- Subpath export `@blindfold/sdk/regex` for standalone local scanning
+- `npm install @blindfold/sdk`
+
+### CLI (`@blindfold/cli`)
+- 10 commands: `detect`, `tokenize`, `detokenize`, `redact`, `mask`, `synthesize`, `hash`, `encrypt`, `discover`, `config`
+- File and stdin input support
+- `--local` flag for offline mode, `--region` for data residency
+- `--json` and `--quiet` output modes
+- `--batch` / `--file` for batch processing from files
+- `npm install -g @blindfold/cli`
+
+### MCP Server (`@blindfold/mcp-server`)
+- 9 tools for Claude, Cursor, and other MCP-compatible AI assistants
+- Batch support via `text` or `texts` parameter on all tools
+- Policy, entity filtering, and language configuration per tool call
+- `npm install -g @blindfold/mcp-server`
+
+### Java SDK (`dev.blindfold:blindfold-sdk`)
+- Synchronous (`Blindfold`) and asynchronous (`BlindfoldAsync`) clients
+- `CompletableFuture`-based async API
+- Local regex mode without API key
+- Java 11+ compatible

@@ -1,6 +1,6 @@
 {
   "name": "@blindfold/mcp-server",
-  "version": "1.3.1",
+  "version": "1.0.0",
   "type": "module",
   "description": "MCP server for Blindfold PII detection - protect sensitive data in AI conversations",
   "bin": {
@@ -50,7 +50,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@blindfold/sdk": "^1.3.0",
+    "@blindfold/sdk": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
