@@ -1,210 +1,88 @@
 # Blindfold SDK Packages
 
-This directory contains the official open-source SDKs for Blindfold - The Privacy API for AI.
+This directory contains the official open-source SDKs for [Blindfold](https://blindfold.dev) — detect, redact, tokenize, and mask PII. All packages work offline with zero dependencies. No API key required.
 
-## 📦 Available Packages
+## Available Packages
 
-### [JavaScript/TypeScript SDK](./js-sdk)
-Official JavaScript and TypeScript SDK for Node.js and browser environments.
+| Package | Directory | Registry | Install |
+|---------|-----------|----------|---------|
+| [Python SDK](./python-sdk) | `packages/python-sdk` | [PyPI](https://pypi.org/project/blindfold-sdk/) | `pip install blindfold-sdk` |
+| [JS/TS SDK](./js-sdk) | `packages/js-sdk` | [npm](https://www.npmjs.com/package/@blindfold/sdk) | `npm install @blindfold/sdk` |
+| [Java SDK](./java-sdk) | `packages/java-sdk` | Maven Central | `dev.blindfold:blindfold-sdk:1.0.0` |
+| [CLI](./cli) | `packages/cli` | [npm](https://www.npmjs.com/package/@blindfold/cli) | `npm install -g @blindfold/cli` |
+| [MCP Server](./mcp-server) | `packages/mcp-server` | [npm](https://www.npmjs.com/package/@blindfold/mcp-server) | `npx -y @blindfold/mcp-server` |
 
-**Install:**
-```bash
-npm install @blindfold/sdk
-```
+## Features (all packages)
 
-**Quick Start:**
-```typescript
-import { Blindfold } from '@blindfold/sdk'
+- **8 operations**: detect, tokenize, detokenize, redact, mask, hash, encrypt, synthesize
+- **80+ entity types** across 30+ countries with checksum validation
+- **Offline / local mode** — regex-based detection, no API key, no network calls
+- **Optional NLP upgrade** — add API key for names, addresses, organizations (60+ more entities)
+- **Batch processing** — up to 100 texts per request
+- **Built-in policies** — GDPR, HIPAA, PCI-DSS
+- **Multi-region** — EU and US data residency
 
-const client = new Blindfold({ apiKey: 'your-api-key' })
-const result = await client.tokenize('John Doe called at john@example.com')
-```
-
-### [Python SDK](./python-sdk)
-Official Python SDK with both sync and async support.
-
-**Install:**
-```bash
-pip install blindfold-sdk
-```
-
-**Quick Start:**
-```python
-from blindfold import Blindfold
-
-client = Blindfold(api_key='your-api-key')
-result = client.tokenize(text='John Doe called at john@example.com')
-```
-
-## 🏗️ Unified Structure
-
-Both SDKs follow a consistent, professional structure:
+## Project Structure
 
 ```
-{sdk-name}/
-├── src/                    # Source code
-├── tests/                  # Test files
-├── examples/               # Example applications
-├── dist/                   # Build output (gitignored)
-├── README.md              # User documentation
-├── CONTRIBUTING.md        # Developer guide
-└── Configuration files    # Linting, testing, building
+packages/
+├── python-sdk/          Python SDK (sync + async)
+│   ├── src/blindfold/   Source code
+│   └── tests/           Unit tests
+├── js-sdk/              JavaScript/TypeScript SDK
+│   ├── src/             Source code
+│   └── tests/           Unit tests
+├── java-sdk/            Java SDK (sync + async via CompletableFuture)
+│   └── src/             Source code + tests
+├── cli/                 Command-line interface
+│   ├── src/             Source code
+│   └── tests/           Unit tests
+└── mcp-server/          MCP Server for AI assistants
+    ├── src/             Source code
+    └── tests/           Unit tests
 ```
 
-## 🔧 Development Setup
+## Development
 
-### JS SDK
+### JS SDK / CLI / MCP Server
 
 ```bash
-cd js-sdk
+cd packages/js-sdk    # or cli, mcp-server
 npm install
 npm test
-npm run lint
 npm run build
 ```
 
 ### Python SDK
 
 ```bash
-cd python-sdk
+cd packages/python-sdk
 pip install -e ".[dev]"
-make test
-make lint
-make build
+pytest
+python -m build
 ```
 
-## ✅ Available Scripts
-
-### JavaScript SDK
-
-| Command | Description |
-|---------|-------------|
-| `npm test` | Run tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test:coverage` | Run tests with coverage |
-| `npm run lint` | Lint code |
-| `npm run lint:fix` | Fix linting issues |
-| `npm run format` | Format code |
-| `npm run type-check` | Type checking |
-| `npm run build` | Build package |
-| `npm run validate` | Run all checks |
-
-### Python SDK
-
-| Command | Description |
-|---------|-------------|
-| `make test` | Run tests |
-| `make test-cov` | Run tests with coverage |
-| `make lint` | Lint code |
-| `make lint-fix` | Fix linting issues |
-| `make format` | Format code |
-| `make type-check` | Type checking |
-| `make build` | Build package |
-| `make validate` | Run all checks |
-
-## 📚 Examples
-
-Both SDKs include comprehensive examples:
-
-- **Basic Tokenization** - Simple tokenize → process → detokenize flow
-- **Multiple Methods** - Demonstrates all anonymization methods
-- **OpenAI Integration** - Real-world LLM integration
-- **Async Usage** (Python) - Async/await patterns
-
-Run examples:
-```bash
-# JavaScript
-npx tsx examples/basic-tokenization.ts
-
-# Python
-python examples/basic_tokenization.py
-```
-
-## 🧪 Testing
-
-Both SDKs have comprehensive test suites with coverage reporting:
-
-### Run Tests
+### Java SDK
 
 ```bash
-# JavaScript
-cd js-sdk && npm test
-
-# Python
-cd python-sdk && make test
+cd packages/java-sdk
+mvn test
+mvn clean package
 ```
 
-### Coverage Reports
+## Code Quality
 
-Coverage reports are generated in:
-- JS: `js-sdk/coverage/`
-- Python: `python-sdk/htmlcov/`
+| Language | Linting | Formatting | Types | Testing |
+|----------|---------|------------|-------|---------|
+| TypeScript | ESLint | Prettier | TypeScript | Jest / Vitest |
+| Python | Ruff | Black + isort | mypy | pytest |
+| Java | — | — | javac | JUnit 5 |
 
-## 🎨 Code Quality
+## Documentation
 
-Both SDKs enforce consistent code quality:
+- [docs.blindfold.dev](https://docs.blindfold.dev) — Full API reference
+- Each package has its own detailed README with usage examples
 
-### JavaScript
-- **ESLint** - Linting
-- **Prettier** - Formatting
-- **TypeScript** - Type checking
-- **Jest** - Testing
+## License
 
-### Python
-- **Ruff** - Linting
-- **Black** - Formatting
-- **isort** - Import sorting
-- **mypy** - Type checking
-- **pytest** - Testing
-
-## 🚀 CI/CD
-
-GitHub Actions workflows are configured for both SDKs:
-
-- **Continuous Integration** - Runs on every push/PR
-- **Multi-version Testing** - Tests across Node 16/18/20 and Python 3.8-3.12
-- **Code Coverage** - Uploads to Codecov
-- **Build Validation** - Ensures packages build correctly
-
-Workflows:
-- `.github/workflows/js-sdk-ci.yml`
-- `.github/workflows/python-sdk-ci.yml`
-
-## 📖 Documentation
-
-Each SDK includes:
-- **README.md** - User-facing documentation
-- **CONTRIBUTING.md** - Developer guide
-- **Examples** - Practical code examples
-- **JSDoc/Docstrings** - Inline API documentation
-
-## 🔑 Key Features
-
-Both SDKs support:
-
-✅ **Tokenization** (reversible)
-✅ **Detokenization** (client-side)
-✅ **Masking** (partial hiding)
-✅ **Redaction** (permanent removal)
-✅ **Hashing** (deterministic)
-✅ **Synthesis** (fake data)
-✅ **Encryption** (AES)
-✅ **Policy Support** (GDPR, HIPAA, etc.)
-✅ **Error Handling**
-✅ **Type Safety**
-
-## 🤝 Contributing
-
-We welcome contributions! Please see:
-- [JS SDK Contributing Guide](./js-sdk/CONTRIBUTING.md)
-- [Python SDK Contributing Guide](./python-sdk/CONTRIBUTING.md)
-
-## 📄 License
-
-Both SDKs are open source under the [MIT License](../LICENSE).
-
-## 🆘 Support
-
-- Documentation: https://docs.blindfold.dev
-- Issues: https://github.com/blindfold-dev/blindfold-github/issues
-- Email: support@blindfold.dev
+All packages are open source under the [MIT License](../LICENSE).
