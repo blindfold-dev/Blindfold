@@ -1,3 +1,3 @@
-module github.com/blindfold-dev/blindfold-go
+module github.com/blindfold-dev/blindfold-github/packages/go-sdk
 
 go 1.21
