@@ -1,5 +1,6 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createApiRequest } from './api.js';
+import { createLocalRequest } from './local.js';
 import { createServer } from './server.js';
 
 const REGION_URLS: Record<string, string> = {
@@ -9,6 +10,7 @@ const REGION_URLS: Record<string, string> = {
 
 const API_KEY = process.env.BLINDFOLD_API_KEY;
 const REGION = process.env.BLINDFOLD_REGION;
+const MODE = process.env.BLINDFOLD_MODE;
 
 function resolveBaseUrl(): string {
   if (process.env.BLINDFOLD_BASE_URL) return process.env.BLINDFOLD_BASE_URL;
@@ -23,14 +25,28 @@ function resolveBaseUrl(): string {
   return 'https://api.blindfold.dev';
 }
 
-const BASE_URL = resolveBaseUrl();
-
-if (!API_KEY) {
-  console.error('BLINDFOLD_API_KEY environment variable is required');
-  process.exit(1);
+function resolveLocales(): string[] | undefined {
+  const raw = process.env.BLINDFOLD_LOCALES;
+  if (!raw) return undefined;
+  return raw.split(',').map((l) => l.trim());
 }
 
-const apiRequest = createApiRequest(API_KEY, BASE_URL);
+const isLocal = MODE === 'local' || !API_KEY;
+
+let apiRequest: (endpoint: string, body: Record<string, unknown>) => Promise<unknown>;
+
+if (isLocal) {
+  if (!API_KEY) {
+    console.error(
+      'No BLINDFOLD_API_KEY set. Running in local/offline mode (regex only).'
+    );
+  }
+  apiRequest = createLocalRequest(resolveLocales());
+} else {
+  const BASE_URL = resolveBaseUrl();
+  apiRequest = createApiRequest(API_KEY, BASE_URL);
+}
+
 const server = createServer(apiRequest);
 
 async function main() {
