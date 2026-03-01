@@ -67,6 +67,57 @@ console.log(redacted.text)
 // "Email, SSN"
 ```
 
+## Protect AI Prompts
+
+Tokenize PII before sending to any LLM. The AI never sees real data.
+
+### OpenAI
+
+```typescript
+import { Blindfold } from '@blindfold/sdk'
+import OpenAI from 'openai'
+
+const bf = new Blindfold() // Free local mode
+const openai = new OpenAI()
+
+// 1. Tokenize PII
+const safe = await bf.tokenize("My name is John Smith, email john@acme.com")
+// safe.text → "My name is <Person_1>, email <Email Address_1>"
+
+// 2. Send to GPT — PII never reaches OpenAI
+const response = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: safe.text }]
+})
+
+// 3. Restore original data
+const result = bf.detokenize(response.choices[0].message.content, safe.mapping)
+console.log(result.text)
+```
+
+### Anthropic Claude
+
+```typescript
+import { Blindfold } from '@blindfold/sdk'
+import Anthropic from '@anthropic-ai/sdk'
+
+const bf = new Blindfold()
+const anthropic = new Anthropic()
+
+const safe = await bf.tokenize("My name is John Smith, email john@acme.com")
+
+const response = await anthropic.messages.create({
+  model: 'claude-sonnet-4-20250514',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: safe.text }]
+})
+
+const result = bf.detokenize(response.content[0].text, safe.mapping)
+console.log(result.text)
+```
+
+**Works with any AI provider:** OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Azure OpenAI, LangChain, LlamaIndex, Vercel AI SDK, CrewAI — [see all integrations](https://docs.blindfold.dev/integrations).
+
 ## Upgrade to Blindfold API (optional)
 
 For names, addresses, organizations, and 60+ entity types, add your API key:

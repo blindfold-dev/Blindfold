@@ -79,6 +79,47 @@ System.out.println(redacted.getText());
 // "Email, SSN"
 ```
 
+## Protect AI Prompts
+
+Tokenize PII before sending to any LLM. The AI never sees real data.
+
+### OpenAI
+
+```java
+import dev.blindfold.sdk.Blindfold;
+
+Blindfold bf = new Blindfold(); // Free local mode
+
+// 1. Tokenize PII
+var safe = bf.tokenize("My name is John Smith, email john@acme.com");
+// safe.getText() → "My name is <Person_1>, email <Email Address_1>"
+
+// 2. Send to GPT — PII never reaches OpenAI
+String aiResponse = callOpenAI(safe.getText());
+
+// 3. Restore original data
+var result = bf.detokenize(aiResponse, safe.getMapping());
+System.out.println(result.getText());
+```
+
+### Anthropic Claude
+
+```java
+import dev.blindfold.sdk.Blindfold;
+
+Blindfold bf = new Blindfold();
+
+var safe = bf.tokenize("My name is John Smith, email john@acme.com");
+
+// Send to Claude via your preferred Anthropic Java client
+String aiResponse = callClaude(safe.getText());
+
+var result = bf.detokenize(aiResponse, safe.getMapping());
+System.out.println(result.getText());
+```
+
+**Works with any AI provider:** OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Azure OpenAI, LangChain, LlamaIndex, Vercel AI SDK, CrewAI — [see all integrations](https://docs.blindfold.dev/integrations).
+
 ## Upgrade to Blindfold API (optional)
 
 For names, addresses, organizations, and 60+ entity types, add your API key:
