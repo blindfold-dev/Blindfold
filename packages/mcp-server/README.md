@@ -1,8 +1,21 @@
-# @blindfold/mcp-server
+# Blindfold MCP Server
 
-MCP server for [Blindfold](https://blindfold.dev) — protect sensitive data in AI conversations. Detect, tokenize, mask, redact, hash, encrypt, or synthesize PII directly from Claude Desktop, Claude Code, Cursor, or any MCP-compatible client.
+Detect, redact, tokenize, and mask PII directly from Claude, Cursor, or any MCP-compatible AI assistant. 80+ entity types, 30+ countries, works offline with zero dependencies.
 
-## Setup
+[![npm version](https://img.shields.io/npm/v/@blindfold/mcp-server)](https://www.npmjs.com/package/@blindfold/mcp-server)
+[![License](https://img.shields.io/npm/l/@blindfold/mcp-server)](https://github.com/blindfold-dev/blindfold/blob/main/LICENSE)
+
+## Why Blindfold MCP?
+
+- **Works offline, zero dependencies** — No API key needed. No network calls. No data leaves your machine.
+- **80+ PII entity types** across 30+ countries with checksum validation (Luhn, IBAN mod-97, Verhoeff, etc.)
+- **Run on your own infrastructure** — All processing happens locally. Nothing is sent externally unless you opt in with an API key.
+- **9 tools**: detect, redact, tokenize, detokenize, mask, hash, encrypt, synthesize, discover
+- **Compliance-ready** — Built-in GDPR, HIPAA, PCI-DSS policies
+- **Optional NLP upgrade** — Add API key to detect names, addresses, organizations (60+ additional entities)
+- **Batch support** — Process single text or arrays via `text`/`texts` parameters
+
+## Setup (no API key needed)
 
 ### Claude Desktop
 
@@ -13,14 +26,13 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "blindfold": {
       "command": "npx",
-      "args": ["-y", "@blindfold/mcp-server"],
-      "env": {
-        "BLINDFOLD_API_KEY": "your_api_key"
-      }
+      "args": ["-y", "@blindfold/mcp-server"]
     }
   }
 }
 ```
+
+That's it. No API key, no configuration. The server runs in **local mode** automatically — 80+ entity types detected offline using regex with checksum validation.
 
 ### Claude Code
 
@@ -31,10 +43,7 @@ Add to your project's `.mcp.json`:
   "mcpServers": {
     "blindfold": {
       "command": "npx",
-      "args": ["-y", "@blindfold/mcp-server"],
-      "env": {
-        "BLINDFOLD_API_KEY": "your_api_key"
-      }
+      "args": ["-y", "@blindfold/mcp-server"]
     }
   }
 }
@@ -49,22 +58,52 @@ Add via Settings > MCP Servers, or in `.cursor/mcp.json`:
   "mcpServers": {
     "blindfold": {
       "command": "npx",
+      "args": ["-y", "@blindfold/mcp-server"]
+    }
+  }
+}
+```
+
+## Upgrade to Blindfold API (optional)
+
+For names, addresses, organizations, and 60+ entity types, add your API key:
+
+1. Sign up at [blindfold.dev](https://www.blindfold.dev/)
+2. Get your API key at [app.blindfold.dev/api-keys](https://app.blindfold.dev/api-keys)
+3. Add it to your config:
+
+```json
+{
+  "mcpServers": {
+    "blindfold": {
+      "command": "npx",
       "args": ["-y", "@blindfold/mcp-server"],
       "env": {
-        "BLINDFOLD_API_KEY": "your_api_key"
+        "BLINDFOLD_API_KEY": "sk-..."
       }
     }
   }
 }
 ```
 
-## Get an API Key
+### Force local mode (with API key)
 
-1. Sign up at [app.blindfold.dev](https://app.blindfold.dev)
-2. Go to **API Keys** and create a new key
-3. Copy the key into your config
+If you have an API key but want to ensure no data leaves your machine:
 
-> **Note:** The MCP server requires an API key for Cloud API access. For local mode without an API key (80+ regex-based entity types, no data leaves your infrastructure), use the [Python SDK](https://pypi.org/project/blindfold-sdk/) or [JavaScript SDK](https://www.npmjs.com/package/@blindfold/sdk) directly.
+```json
+{
+  "mcpServers": {
+    "blindfold": {
+      "command": "npx",
+      "args": ["-y", "@blindfold/mcp-server"],
+      "env": {
+        "BLINDFOLD_API_KEY": "sk-...",
+        "BLINDFOLD_MODE": "local"
+      }
+    }
+  }
+}
+```
 
 ## Available Tools
 
@@ -78,11 +117,13 @@ Add via Settings > MCP Servers, or in `.cursor/mcp.json`:
 | `blindfold_synthesize` | Replace with realistic fake data |
 | `blindfold_hash` | One-way hash PII |
 | `blindfold_encrypt` | Encrypt PII with a password |
-| `blindfold_discover` | Analyze samples for PII types |
+| `blindfold_discover` | Analyze samples for PII types (API mode only) |
+
+All tools support batch processing via `text` (single) or `texts` (array) parameters.
 
 ## Usage Examples
 
-Once configured, you can ask Claude to use Blindfold tools naturally:
+Once configured, ask Claude to use Blindfold tools naturally:
 
 **Tokenize before processing:**
 > "Tokenize this patient record before summarizing: John Doe, SSN 123-45-6789, diagnosed with diabetes"
@@ -123,23 +164,17 @@ All tools accept an optional `policy` parameter:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `BLINDFOLD_API_KEY` | Yes | — | Your Blindfold API key |
-| `BLINDFOLD_BASE_URL` | No | `https://api.blindfold.dev` | API base URL |
+| `BLINDFOLD_API_KEY` | No | — | API key for NLP-powered detection. Omit for local mode. |
+| `BLINDFOLD_MODE` | No | auto | Set to `local` to force offline mode |
+| `BLINDFOLD_REGION` | No | — | Data residency: `eu` or `us` (API mode only) |
+| `BLINDFOLD_BASE_URL` | No | `https://api.blindfold.dev` | Custom API endpoint |
+| `BLINDFOLD_LOCALES` | No | `us` | Comma-separated locale codes (e.g., `us,eu,uk,de`) |
 
 ## Security
 
-- Your API key is stored locally in your config file and never sent to the AI model
-- The MCP server runs as a local process on your machine
-- All API calls use HTTPS
-- The AI model only sees tool names, parameters, and results
-
-## Development
-
-```bash
-npm install
-npm run build
-npm run dev   # watch mode
-```
+- **Local mode**: All processing happens on your machine. No data is sent anywhere.
+- **API mode**: API key is stored locally in your config file and never sent to the AI model. All API calls use HTTPS.
+- The AI model only sees tool names, parameters, and results.
 
 ## License
 
