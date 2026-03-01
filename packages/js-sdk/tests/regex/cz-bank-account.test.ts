@@ -30,4 +30,10 @@ describe('Czech Bank Account Detection', () => {
   test('should reject invalid bank code length', () => {
     expect(czBank(scanner.detect('Ucet: 2000145399/08')).length).toBe(0)
   })
+
+  test('should not match birth number as bank account', () => {
+    // 850101/0001 is a valid Czech birth number (Jan 1 1985, divisible by 11)
+    expect(czBank(scanner.detect('850101/0001')).length).toBe(0)
+    expect(czBank(scanner.detect('Ucet: 850101/0001')).length).toBe(0)
+  })
 })

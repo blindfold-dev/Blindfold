@@ -396,6 +396,11 @@ export function czBankAccountValid(number: string): boolean {
     for (let i = 0; i < 6; i++) prefTotal += prefDigits[i] * prefWeights[i]
     if (prefTotal % 11 !== 0) return false
   }
+  // Disambiguate: if no prefix and account is 6 digits (YYMMDD), the match
+  // could be a Czech birth number (YYMMDD/XXXX). Prefer birth number.
+  if (prefix === '' && account.length === 6 && czBirthNumberValid(number)) {
+    return false
+  }
   return true
 }
 

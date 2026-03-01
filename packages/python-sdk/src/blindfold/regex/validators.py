@@ -279,6 +279,10 @@ def cz_bank_account_valid(number: str) -> bool:
         pref_total = sum(d * w for d, w in zip(pref_digits, pref_weights))
         if pref_total % 11 != 0:
             return False
+    # Disambiguate: if no prefix and account is 6 digits (YYMMDD), the match
+    # could be a Czech birth number (YYMMDD/XXXX). Prefer birth number.
+    if not prefix and len(account) == 6 and cz_birth_number_valid(number):
+        return False
     return True
 
 

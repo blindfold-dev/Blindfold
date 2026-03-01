@@ -36,3 +36,8 @@ class TestInvalidCzBankAccount:
 
     def test_invalid_bank_code_length(self, scanner):
         assert _cz_bank(scanner.detect("Ucet: 2000145399/08")) == []
+
+    def test_birth_number_not_detected_as_bank_account(self, scanner):
+        # 850101/0001 is a valid Czech birth number (Jan 1 1985, divisible by 11)
+        assert _cz_bank(scanner.detect("850101/0001")) == []
+        assert _cz_bank(scanner.detect("Ucet: 850101/0001")) == []
