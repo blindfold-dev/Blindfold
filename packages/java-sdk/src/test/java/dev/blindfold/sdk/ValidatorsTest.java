@@ -42,6 +42,11 @@ class ValidatorsTest {
     // Czech Birth Number
     @Test void czBirthValid() { assertTrue(Validators.czBirthNumberValid("7103192745")); }
 
+    // Czech Bank Account
+    @Test void czBankValid() { assertTrue(Validators.czBankAccountValid("2000145399/0800")); }
+    @Test void czBankWithPrefix() { assertTrue(Validators.czBankAccountValid("19-2000145399/0800")); }
+    @Test void czBankRejectsBirthNumber() { assertFalse(Validators.czBankAccountValid("850101/0001")); }
+
     // Brazilian CPF
     @Test void brCpfValid() { assertTrue(Validators.brCpfChecksum("529.982.247-25")); }
     @Test void brCpfAllSame() { assertFalse(Validators.brCpfChecksum("111.111.111-11")); }
