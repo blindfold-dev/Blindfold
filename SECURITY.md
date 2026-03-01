@@ -20,10 +20,14 @@ We will acknowledge your report within 48 hours and aim to provide a fix within 
 | Package | Version | Supported |
 |---------|---------|-----------|
 | blindfold-sdk (Python) | 1.x | Yes |
-| @blindfold/sdk (JS) | 1.x | Yes |
+| @blindfold/sdk (JS/TS) | 1.x | Yes |
+| @blindfold/cli | 1.x | Yes |
+| @blindfold/mcp-server | 1.x | Yes |
+| dev.blindfold:blindfold-sdk (Java) | 1.x | Yes |
 
 ## Security Best Practices
 
 - Never hardcode your API key. Use environment variables.
 - Keep your SDK version up to date.
 - Use HTTPS only (enforced by default).
+- In local mode, no data leaves your machine — no API key or network calls required.
