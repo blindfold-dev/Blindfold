@@ -13,6 +13,8 @@ public class BlindfoldOptions {
     private final Duration retryDelay;
     private final Duration timeout;
     private final String userId;
+    private final String policy;
+    private final String policiesFile;
 
     private BlindfoldOptions(Builder builder) {
         this.apiKey = builder.apiKey;
@@ -24,6 +26,8 @@ public class BlindfoldOptions {
         this.retryDelay = builder.retryDelay;
         this.timeout = builder.timeout;
         this.userId = builder.userId;
+        this.policy = builder.policy;
+        this.policiesFile = builder.policiesFile;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -38,6 +42,8 @@ public class BlindfoldOptions {
     public Duration getRetryDelay() { return retryDelay; }
     public Duration getTimeout() { return timeout; }
     public String getUserId() { return userId; }
+    public String getPolicy() { return policy; }
+    public String getPoliciesFile() { return policiesFile; }
 
     public static class Builder {
         private String apiKey;
@@ -49,6 +55,8 @@ public class BlindfoldOptions {
         private Duration retryDelay = Duration.ofMillis(500);
         private Duration timeout = Duration.ofSeconds(30);
         private String userId;
+        private String policy;
+        private String policiesFile;
 
         public Builder apiKey(String apiKey) { this.apiKey = apiKey; return this; }
         public Builder region(String region) { this.region = region; return this; }
@@ -59,6 +67,8 @@ public class BlindfoldOptions {
         public Builder retryDelay(Duration retryDelay) { this.retryDelay = retryDelay; return this; }
         public Builder timeout(Duration timeout) { this.timeout = timeout; return this; }
         public Builder userId(String userId) { this.userId = userId; return this; }
+        public Builder policy(String policy) { this.policy = policy; return this; }
+        public Builder policiesFile(String policiesFile) { this.policiesFile = policiesFile; return this; }
         public BlindfoldOptions build() { return new BlindfoldOptions(this); }
     }
 }
