@@ -37,12 +37,15 @@ class SsnDetector extends Detector {
     while ((match = SSN_WITH_SEP.exec(text)) !== null) {
       const matchedText = match[0]
       if (!ssnValidFormat(matchedText)) continue
+      const start = match.index
+      const end = start + matchedText.length
+      const hasCtx = this.hasContext(text, start, end)
       results.push({
         entityType: this.entityType,
         text: matchedText,
-        start: match.index,
-        end: match.index + matchedText.length,
-        score: 1.0,
+        start,
+        end,
+        score: hasCtx ? 1.0 : this.score,
       })
     }
 
@@ -51,15 +54,16 @@ class SsnDetector extends Detector {
     while ((match = SSN_NO_SEP.exec(text)) !== null) {
       const matchedText = match[0]
       const start = match.index
+      const end = start + matchedText.length
       // Skip if this overlaps with an already-found separated SSN
       if (results.some((r) => r.start <= start && start < r.end)) continue
       if (!ssnValidFormat(matchedText)) continue
-      if (!this.hasContext(text, start)) continue
+      if (!this.hasContext(text, start, end)) continue
       results.push({
         entityType: this.entityType,
         text: matchedText,
         start,
-        end: start + matchedText.length,
+        end,
         score: 1.0,
       })
     }

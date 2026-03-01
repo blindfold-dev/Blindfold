@@ -49,9 +49,8 @@ class SsnDetector(RegexDetector):
             matched_text = match.group()
             if not ssn_valid_format(matched_text):
                 continue
-            score = 1.0
-            if self.context_keywords and self._has_context(text, match.start()):
-                score = 1.0
+            has_ctx = self._has_context(text, match.start(), match.end())
+            score = 1.0 if has_ctx else self.score
             results.append(PIIMatch(
                 entity_type=self.entity_type.value,
                 text=matched_text,
@@ -64,18 +63,19 @@ class SsnDetector(RegexDetector):
         for match in _SSN_NO_SEP.finditer(text):
             matched_text = match.group()
             start = match.start()
+            end = match.end()
             # Skip if this overlaps with an already-found separated SSN
             if any(r.start <= start < r.end for r in results):
                 continue
             if not ssn_valid_format(matched_text):
                 continue
-            if not self._has_context(text, start):
+            if not self._has_context(text, start, end):
                 continue
             results.append(PIIMatch(
                 entity_type=self.entity_type.value,
                 text=matched_text,
                 start=start,
-                end=match.end(),
+                end=end,
                 score=1.0,
             ))
 

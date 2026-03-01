@@ -29,18 +29,25 @@ public abstract class RegexDetector extends Detector {
             int start = matcher.start();
             int end = matcher.end();
 
-            if (isContextRequired() && !hasContext(text, start)) {
+            boolean hasCtx = hasContext(text, start, end);
+
+            if (isContextRequired() && !hasCtx) {
                 continue;
             }
 
-            double score = getScore();
+            double score;
             if (validator != null) {
                 if (!validator.test(matchedText)) {
                     continue;
                 }
-                score = 1.0;
-            } else if (!getContextKeywords().isEmpty() && hasContext(text, start)) {
-                score = Math.min(score + 0.05, 0.95);
+                score = hasCtx ? 1.0 : getScore();
+            } else {
+                if (hasCtx) {
+                    score = getScore();
+                } else {
+                    Double baseScore = getBaseScore();
+                    score = baseScore != null ? baseScore : getScore();
+                }
             }
 
             results.add(new PIIMatch(

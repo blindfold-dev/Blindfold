@@ -11,6 +11,7 @@ class Detector:
 
     entity_type: EntityType
     score: float = 0.85
+    base_score: Optional[float] = None  # score when no context found (None = backward compat)
     context_keywords: List[str] = []
     context_required: bool = False
     context_window: int = 50
@@ -20,13 +21,18 @@ class Detector:
     def iter_matches(self, text: str) -> List[PIIMatch]:
         raise NotImplementedError
 
-    def _has_context(self, text: str, start: int) -> bool:
-        """Check if any context keyword appears near the match position."""
+    def _has_context(self, text: str, start: int, end: int = 0) -> bool:
+        """Check if any context keyword appears near the match position.
+
+        Searches both before and after the match when *end* is provided.
+        """
         if not self.context_keywords:
             return True
-        window_start = max(0, start - self.context_window)
         lower = getattr(self, '_text_lower', None) or text.lower()
-        window = lower[window_start:start]
+        window_start = max(0, start - self.context_window)
+        before = lower[window_start:start]
+        after = lower[end:end + self.context_window] if end else ""
+        window = before + " " + after
         return any(kw in window for kw in self.context_keywords)
 
 
@@ -50,16 +56,20 @@ class RegexDetector(Detector):
             start = match.start()
             end = match.end()
 
-            if self.context_required and not self._has_context(text, start):
+            has_ctx = self._has_context(text, start, end)
+
+            if self.context_required and not has_ctx:
                 continue
 
-            score = self.score
             if self.validator:
                 if not self.validator(matched_text):
                     continue
-                score = 1.0
-            elif self.context_keywords and self._has_context(text, start):
-                score = min(score + 0.05, 0.95)
+                score = 1.0 if has_ctx else self.score
+            else:
+                if has_ctx:
+                    score = self.score
+                else:
+                    score = self.base_score if self.base_score is not None else self.score
 
             results.append(PIIMatch(
                 entity_type=self.entity_type.value,
@@ -96,16 +106,20 @@ class RegionDetector(Detector):
             start = match.start()
             end = match.end()
 
-            if self.context_required and not self._has_context(text, start):
+            has_ctx = self._has_context(text, start, end)
+
+            if self.context_required and not has_ctx:
                 continue
 
-            score = self.score
             if self.validator:
                 if not self.validator(matched_text):
                     continue
-                score = 1.0
-            elif self.context_keywords and self._has_context(text, start):
-                score = min(score + 0.05, 0.95)
+                score = 1.0 if has_ctx else self.score
+            else:
+                if has_ctx:
+                    score = self.score
+                else:
+                    score = self.base_score if self.base_score is not None else self.score
 
             results.append(PIIMatch(
                 entity_type=self.entity_type.value,

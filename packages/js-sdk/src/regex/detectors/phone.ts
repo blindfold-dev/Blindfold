@@ -23,6 +23,12 @@ function phoneLengthCheck(text: string): boolean {
 class PhoneDetector extends RegexDetector {
   entityType = EntityType.PHONE_NUMBER
   score = 0.85
+  contextKeywords = [
+    'phone', 'tel', 'telephone', 'call', 'mobile', 'cell', 'fax',
+    'contact', 'dial', 'reach', 'ring', 'text', 'sms', 'whatsapp',
+    'number', 'ph#', 'ph #', 'cell#', 'cell #',
+  ]
+  contextWindow = 80
   pattern = new RegExp(
     '(?<!\\d)' +
       '(?:' +

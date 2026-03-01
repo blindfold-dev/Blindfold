@@ -64,12 +64,12 @@ public class SsnDetector extends Detector {
             int start = withSep.start();
             int end = withSep.end();
 
-            double score = getScore();
-            if (Validators.ssnValidFormat(matchedText)) {
-                score = 1.0;
-            } else {
+            if (!Validators.ssnValidFormat(matchedText)) {
                 continue;
             }
+
+            boolean hasCtx = hasContext(text, start, end);
+            double score = hasCtx ? 1.0 : getScore();
 
             results.add(new PIIMatch(
                 getEntityType().getValue(),
@@ -87,15 +87,12 @@ public class SsnDetector extends Detector {
             int start = withoutSep.start();
             int end = withoutSep.end();
 
-            if (!hasContext(text, start)) {
+            if (!Validators.ssnValidFormat(matchedText)) {
                 continue;
             }
 
-            double score = getScore();
-            if (Validators.ssnValidFormat(matchedText)) {
-                score = 1.0;
-            } else if (hasContext(text, start)) {
-                score = Math.min(score + 0.05, 0.95);
+            if (!hasContext(text, start, end)) {
+                continue;
             }
 
             results.add(new PIIMatch(
@@ -103,7 +100,7 @@ public class SsnDetector extends Detector {
                 matchedText,
                 start,
                 end,
-                score
+                1.0
             ));
         }
 

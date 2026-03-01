@@ -202,4 +202,80 @@ class PIIScannerTest {
         List<PIIMatch> matches = defaultScanner.detect("SSN: 123-45-6789");
         assertFalse(matches.isEmpty());
     }
+
+    // ---- Context Scoring ----
+
+    @Test
+    void ssnWithContextScores1() {
+        List<PIIMatch> matches = scanner.detect("My SSN is 123-45-6789.");
+        List<PIIMatch> ssns = filterByType(matches, "Social Security Number");
+        assertEquals(1, ssns.size());
+        assertEquals(1.0, ssns.get(0).getScore(), 0.001);
+    }
+
+    @Test
+    void ssnWithoutContextScoresBelow1() {
+        List<PIIMatch> matches = scanner.detect("Reference: 123-45-6789.");
+        List<PIIMatch> ssns = filterByType(matches, "Social Security Number");
+        assertEquals(1, ssns.size());
+        assertTrue(ssns.get(0).getScore() < 1.0);
+    }
+
+    @Test
+    void ssnContextAfterMatch() {
+        List<PIIMatch> matches = scanner.detect("ID 123-45-6789 is a social security number.");
+        List<PIIMatch> ssns = filterByType(matches, "Social Security Number");
+        assertEquals(1, ssns.size());
+        assertEquals(1.0, ssns.get(0).getScore(), 0.001);
+    }
+
+    @Test
+    void ssnNoSepContextAfterMatch() {
+        List<PIIMatch> matches = scanner.detect("Number 123456789 is the ssn on file.");
+        List<PIIMatch> ssns = filterByType(matches, "Social Security Number");
+        assertEquals(1, ssns.size());
+        assertEquals(1.0, ssns.get(0).getScore(), 0.001);
+    }
+
+    @Test
+    void phoneWithContextScores1() {
+        List<PIIMatch> matches = scanner.detect("Call me at (212) 555-1234 today.");
+        List<PIIMatch> phones = filterByType(matches, "Phone Number");
+        assertEquals(1, phones.size());
+        assertEquals(1.0, phones.get(0).getScore(), 0.001);
+    }
+
+    @Test
+    void phoneWithoutContextScoresBelow1() {
+        List<PIIMatch> matches = scanner.detect("(212) 555-1234");
+        List<PIIMatch> phones = filterByType(matches, "Phone Number");
+        assertEquals(1, phones.size());
+        assertTrue(phones.get(0).getScore() < 1.0);
+    }
+
+    @Test
+    void emailScoreUnchanged() {
+        List<PIIMatch> matches = scanner.detect("user@example.com");
+        List<PIIMatch> emails = filterByType(matches, "Email Address");
+        assertEquals(1, emails.size());
+        assertEquals(0.95, emails.get(0).getScore(), 0.001);
+    }
+
+    @Test
+    void macAddressScoreUnchanged() {
+        List<PIIMatch> matches = scanner.detect("MAC: 00:1A:2B:3C:4D:5E");
+        List<PIIMatch> macs = filterByType(matches, "MAC Address");
+        assertEquals(1, macs.size());
+        assertEquals(0.95, macs.get(0).getScore(), 0.001);
+    }
+
+    private List<PIIMatch> filterByType(List<PIIMatch> matches, String entityType) {
+        List<PIIMatch> filtered = new ArrayList<>();
+        for (PIIMatch m : matches) {
+            if (m.getEntityType().equals(entityType)) {
+                filtered.add(m);
+            }
+        }
+        return filtered;
+    }
 }

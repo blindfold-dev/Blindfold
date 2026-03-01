@@ -10,6 +10,9 @@ public abstract class Detector {
 
     public double getScore() { return 0.85; }
 
+    /** Score when no context found. Return null for backward compat (uses getScore()). */
+    public Double getBaseScore() { return null; }
+
     public List<String> getContextKeywords() { return Collections.emptyList(); }
 
     public boolean isContextRequired() { return false; }
@@ -21,13 +24,19 @@ public abstract class Detector {
     public abstract List<PIIMatch> iterMatches(String text);
 
     protected boolean hasContext(String text, int start) {
+        return hasContext(text, start, 0);
+    }
+
+    protected boolean hasContext(String text, int start, int end) {
         List<String> keywords = getContextKeywords();
         if (keywords.isEmpty()) {
             return true;
         }
-        int windowStart = Math.max(0, start - getContextWindow());
         String lower = textLower != null ? textLower : text.toLowerCase();
-        String window = lower.substring(windowStart, start);
+        int windowStart = Math.max(0, start - getContextWindow());
+        String before = lower.substring(windowStart, start);
+        String after = end > 0 ? lower.substring(end, Math.min(lower.length(), end + getContextWindow())) : "";
+        String window = before + " " + after;
         for (String kw : keywords) {
             if (window.contains(kw)) {
                 return true;

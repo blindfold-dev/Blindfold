@@ -28,6 +28,12 @@ def _phone_length_check(text: str) -> bool:
 class PhoneDetector(RegexDetector):
     entity_type = EntityType.PHONE_NUMBER
     score = 0.85
+    context_keywords = [
+        "phone", "tel", "telephone", "call", "mobile", "cell", "fax",
+        "contact", "dial", "reach", "ring", "text", "sms", "whatsapp",
+        "number", "ph#", "ph #", "cell#", "cell #",
+    ]
+    context_window = 80
     pattern = re.compile(
         r"(?<!\d)"
         r"(?:"

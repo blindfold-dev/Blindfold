@@ -5,6 +5,8 @@ import dev.blindfold.sdk.regex.EntityType;
 import dev.blindfold.sdk.regex.RegexDetector;
 import dev.blindfold.sdk.regex.Validators;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -13,6 +15,12 @@ public class PhoneDetector extends RegexDetector {
     static {
         DetectorRegistry.registerUniversal(PhoneDetector::new);
     }
+
+    private static final List<String> CONTEXT_KEYWORDS = Arrays.asList(
+        "phone", "tel", "telephone", "call", "mobile", "cell", "fax",
+        "contact", "dial", "reach", "ring", "text", "sms", "whatsapp",
+        "number", "ph#", "ph #", "cell#", "cell #"
+    );
 
     private static final Pattern PATTERN = Pattern.compile(
         "(?<!\\d)" +
@@ -34,6 +42,16 @@ public class PhoneDetector extends RegexDetector {
     @Override
     public double getScore() {
         return 0.85;
+    }
+
+    @Override
+    public List<String> getContextKeywords() {
+        return CONTEXT_KEYWORDS;
+    }
+
+    @Override
+    public int getContextWindow() {
+        return 80;
     }
 
     @Override
