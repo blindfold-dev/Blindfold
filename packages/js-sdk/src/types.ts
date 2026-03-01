@@ -2,8 +2,8 @@
  * Configuration for Blindfold client
  */
 export interface BlindfoldConfig {
-  /** API key for authentication */
-  apiKey: string
+  /** API key for authentication. When omitted, detect() and redact() use the local regex scanner. */
+  apiKey?: string
   /** Base URL for the API (default: https://api.blindfold.dev/api/public/v1) */
   baseUrl?: string
   /** Region for data residency ("eu" or "us"). Overrides baseUrl if baseUrl is not set. */
@@ -14,6 +14,12 @@ export interface BlindfoldConfig {
   maxRetries?: number
   /** Initial delay in seconds before first retry (default: 0.5) */
   retryDelay?: number
+  /** Set to "local" to force local regex detection even when an API key is present. */
+  mode?: 'local' | 'api'
+  /** Locale codes for the local regex scanner (default: ["us"]). Example: ["us", "eu", "cz"]. Only used in local mode. */
+  locales?: string[]
+  /** Path to a JSON file with custom policy definitions. Merged over the bundled policies. */
+  policiesFile?: string
 }
 
 /**
@@ -233,7 +239,7 @@ export interface EncryptResponse {
  */
 export interface BatchResponse {
   /** Array of individual results (or { error: string } for failed items) */
-  results: (Record<string, unknown>)[]
+  results: Record<string, unknown>[]
   /** Total number of texts submitted */
   total: number
   /** Number of texts processed successfully */

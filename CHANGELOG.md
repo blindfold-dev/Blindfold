@@ -4,6 +4,16 @@ All notable changes to Blindfold SDKs will be documented in this file.
 
 ## Python SDK
 
+### [1.4.0] - 2026-02-23
+
+- Add built-in regex PII scanner for offline detection (no API key required)
+- Make `api_key` parameter optional - SDK works without it using local regex detection
+- Add `mode` parameter to force local or API mode
+- Add `PIIScanner` class with support for 20+ entity types across US, EU, and UK locales
+- Add validators: Luhn (credit cards), IBAN mod-97, SSN format rules, NHS modulus-11
+- Context-required patterns for low-specificity entities (CVV, ZIP, DOB, etc.)
+- Export `PIIScanner` and `EntityType` from top-level package
+
 ### [1.0.0] - 2026-02-08
 
 - Initial release
@@ -13,6 +23,17 @@ All notable changes to Blindfold SDKs will be documented in this file.
 - Comprehensive error handling
 
 ## JavaScript SDK
+
+### [1.4.0] - 2026-02-23
+
+- Add built-in regex PII scanner for offline detection (no API key required)
+- Make `apiKey` optional in `BlindfoldConfig` - SDK works without it using local regex detection
+- Add `mode` option to force local or API mode
+- Add `PIIScanner` class with support for 20+ entity types across US, EU, and UK locales
+- Add validators: Luhn (credit cards), IBAN mod-97, SSN format rules, NHS modulus-11
+- Context-required patterns for low-specificity entities (CVV, ZIP, DOB, etc.)
+- Add `@blindfold/sdk/regex` subpath export for standalone scanner usage
+- Export `PIIScanner` and `EntityType` from main entry point
 
 ### [1.0.0] - 2026-02-08
 

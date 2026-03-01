@@ -24,19 +24,30 @@ npx tsx examples/basic-tokenization.ts
 
 ## Available Examples
 
-### 1. Offline Detokenization (`offline-detokenization.ts`) ⭐️ **Start Here!**
-Demonstrates client-side detokenization without needing an API key:
+### 1. Offline Operations (`offline-detokenization.ts`) ⭐️ **Start Here!**
+Demonstrates client-side operations without needing an API key:
 - Works completely offline
 - No API key required
 - Fast and secure
-- Multiple practical examples
+- Detokenization and synthesis examples
 
 **Run:**
 ```bash
 npx tsx examples/offline-detokenization.ts
 ```
 
-### 2. Basic Tokenization (`basic-tokenization.ts`)
+### 2. Offline All Methods (`offline-all-methods.ts`)
+Demonstrates every method running locally without an API key:
+- Detect, redact, tokenize, detokenize
+- Mask, hash, synthesize, encrypt
+- Zero network calls
+
+**Run:**
+```bash
+npx tsx examples/offline-all-methods.ts
+```
+
+### 3. Basic Tokenization (`basic-tokenization.ts`)
 Demonstrates the fundamental tokenize → process → detokenize flow:
 - Tokenizing sensitive data
 - Sending to an LLM (simulated)
@@ -47,7 +58,7 @@ Demonstrates the fundamental tokenize → process → detokenize flow:
 npx tsx examples/basic-tokenization.ts
 ```
 
-### 3. Multiple Methods (`multiple-methods.ts`)
+### 4. Multiple Methods (`multiple-methods.ts`)
 Shows all anonymization methods available:
 - Tokenize (reversible)
 - Mask (partial visibility)
@@ -60,7 +71,7 @@ Shows all anonymization methods available:
 npx tsx examples/multiple-methods.ts
 ```
 
-### 4. OpenAI Integration (`with-openai.ts`)
+### 5. OpenAI Integration (`with-openai.ts`)
 Real-world example with OpenAI:
 - Protecting PII before sending to OpenAI
 - Using policy-based detection (GDPR)

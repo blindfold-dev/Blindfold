@@ -1,0 +1,1 @@
+"""Spanish PII detectors"""

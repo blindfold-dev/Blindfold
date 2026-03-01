@@ -22,7 +22,10 @@ const BATCH_RESPONSE = {
 
 const BATCH_DETECT_RESPONSE = {
   results: [
-    { detected_entities: [{ type: 'Person', text: 'John', start: 0, end: 4, score: 0.95 }], entities_count: 1 },
+    {
+      detected_entities: [{ type: 'Person', text: 'John', start: 0, end: 4, score: 0.95 }],
+      entities_count: 1,
+    },
     { detected_entities: [], entities_count: 0 },
   ],
   total: 2,

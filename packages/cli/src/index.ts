@@ -20,6 +20,8 @@ program
   .option('--api-key <key>', 'API key (overrides BLINDFOLD_API_KEY env var)')
   .option('--base-url <url>', 'API base URL')
   .option('--region <region>', 'API region for data residency (eu or us)')
+  .option('--local', 'run in local/offline mode using regex detection (no API key needed)')
+  .option('--locales <codes>', 'locale codes for local detection (comma-separated, e.g. us,eu,de)')
   .option('--json', 'output raw JSON')
   .option('--quiet', 'output only the transformed text');
 

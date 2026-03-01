@@ -1,6 +1,6 @@
 # Blindfold SDK Packages
 
-This directory contains the official SDKs for Blindfold - The Privacy API for AI.
+This directory contains the official open-source SDKs for Blindfold - The Privacy API for AI.
 
 ## 📦 Available Packages
 
@@ -201,7 +201,7 @@ We welcome contributions! Please see:
 
 ## 📄 License
 
-Both SDKs are licensed under the MIT License.
+Both SDKs are open source under the [MIT License](../LICENSE).
 
 ## 🆘 Support
 

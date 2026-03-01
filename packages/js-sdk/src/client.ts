@@ -2,6 +2,7 @@ import type {
   BlindfoldConfig,
   DetectConfig,
   DetectResponse,
+  DetectedEntity,
   TokenizeConfig,
   TokenizeResponse,
   DetokenizeResponse,
@@ -19,6 +20,9 @@ import type {
   APIErrorResponse,
 } from './types'
 import { AuthenticationError, APIError, NetworkError } from './errors'
+import type { PIIScanner as PIIScannerType } from './regex'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const DEFAULT_BASE_URL = 'https://api.blindfold.dev/api/public/v1'
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504])
@@ -32,26 +36,57 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+interface PolicyDefinition {
+  entities: string[]
+  threshold?: number
+}
+
+type PolicyMap = Record<string, PolicyDefinition>
+
+const BUNDLED_POLICIES_PATH = path.join(__dirname, 'policies.json')
+
+function loadPolicies(policiesFile?: string): PolicyMap {
+  const bundled: PolicyMap = JSON.parse(fs.readFileSync(BUNDLED_POLICIES_PATH, 'utf-8'))
+  if (policiesFile) {
+    const user: PolicyMap = JSON.parse(fs.readFileSync(policiesFile, 'utf-8'))
+    return { ...bundled, ...user }
+  }
+  return bundled
+}
+
 /**
- * Blindfold client for tokenization and detokenization
+ * Blindfold client for tokenization and detokenization.
+ *
+ * When no `apiKey` is provided, all methods run locally using the
+ * built-in regex PII scanner.  Set `mode: "local"` to force local
+ * mode even when an API key is present.
  */
 export class Blindfold {
-  private apiKey: string
+  private apiKey?: string
   private baseUrl: string
   private userId?: string
   private maxRetries: number
   private retryDelay: number
+  private mode?: string
+  private locales?: string[]
+  private policies: PolicyMap
+  private _scanner?: PIIScannerType
 
   /**
    * Create a new Blindfold client
-   * @param config - Configuration options
+   * @param config - Configuration options. Can be omitted entirely for local-only mode.
    */
-  constructor(config: BlindfoldConfig) {
+  constructor(config: BlindfoldConfig = {}) {
     this.apiKey = config.apiKey
+    this.mode = config.mode
+    this.locales = config.locales
+    this.policies = loadPolicies(config.policiesFile)
     if (config.region && !config.baseUrl) {
       const regionUrl = REGION_URLS[config.region]
       if (!regionUrl) {
-        throw new Error(`Invalid region '${config.region}'. Must be one of: ${Object.keys(REGION_URLS).join(', ')}`)
+        throw new Error(
+          `Invalid region '${config.region}'. Must be one of: ${Object.keys(REGION_URLS).join(', ')}`
+        )
       }
       this.baseUrl = regionUrl
     } else {
@@ -60,6 +95,48 @@ export class Blindfold {
     this.userId = config.userId
     this.maxRetries = config.maxRetries ?? 2
     this.retryDelay = config.retryDelay ?? 0.5
+
+    if (this.useLocal && config.region) {
+      console.warn(
+        `region='${config.region}' has no effect in local mode. ` +
+        'Set an apiKey to use region-based routing.'
+      )
+    }
+  }
+
+  private get useLocal(): boolean {
+    if (this.mode === 'local') return true
+    return !this.apiKey
+  }
+
+  private getScanner(): PIIScannerType {
+    if (!this._scanner) {
+      const { PIIScanner } = require('./regex') as typeof import('./regex')
+      this._scanner = new PIIScanner(this.locales ? { locales: this.locales } : undefined)
+    }
+    return this._scanner
+  }
+
+  private resolvePolicy(
+    policy?: string,
+    entities?: string[],
+    scoreThreshold?: number
+  ): { entities?: string[]; threshold?: number } {
+    if (entities) {
+      return { entities, threshold: scoreThreshold }
+    }
+    if (policy) {
+      const policyDef = this.policies[policy]
+      if (policyDef) {
+        return {
+          entities: policyDef.entities,
+          threshold: scoreThreshold ?? policyDef.threshold,
+        }
+      } else {
+        console.warn(`Unknown policy '${policy}' in local mode, detecting all entities`)
+      }
+    }
+    return { threshold: scoreThreshold }
   }
 
   private retryWait(attempt: number, error?: APIError): number {
@@ -69,7 +146,7 @@ export class Blindfold {
         return body.retry_after * 1000
       }
     }
-    const delay = this.retryDelay * (2 ** attempt) * 1000
+    const delay = this.retryDelay * 2 ** attempt * 1000
     const jitter = delay * 0.1 * Math.random()
     return delay + jitter
   }
@@ -86,7 +163,10 @@ export class Blindfold {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-API-Key': this.apiKey,
+    }
+
+    if (this.apiKey) {
+      headers['X-API-Key'] = this.apiKey
     }
 
     if (this.userId) {
@@ -178,10 +258,27 @@ export class Blindfold {
    * @returns Promise with tokenized text and mapping
    */
   async tokenize(text: string, config?: TokenizeConfig): Promise<TokenizeResponse> {
+    if (this.useLocal) {
+      return this.tokenizeLocal(text, config)
+    }
     return this.request<TokenizeResponse>('/tokenize', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private tokenizeLocal(text: string, config?: TokenizeConfig): TokenizeResponse {
+    const { entities: resolved, threshold } = this.resolvePolicy(config?.policy, config?.entities, config?.score_threshold)
+    const scanner = this.getScanner()
+    const result = scanner.tokenize(text, resolved)
+
+    const detected: DetectedEntity[] = result.matches
+      .filter((m) => threshold == null || m.score >= threshold)
+      .map((m) => ({
+        type: m.entityType, text: m.text, start: m.start, end: m.end, score: m.score,
+      }))
+
+    return { text: result.text, mapping: result.mapping, detected_entities: detected, entities_count: detected.length }
   }
 
   /**
@@ -190,15 +287,35 @@ export class Blindfold {
    * Returns only the detected entities with their types, positions,
    * and confidence scores. The original text is not transformed.
    *
+   * When no API key is set (or `mode: "local"`), detection runs locally
+   * using the built-in regex scanner.
+   *
    * @param text - Text to analyze for PII
    * @param config - Optional configuration (entities, score_threshold, policy)
    * @returns Promise with detected entities
    */
   async detect(text: string, config?: DetectConfig): Promise<DetectResponse> {
+    if (this.useLocal) {
+      return this.detectLocal(text, config)
+    }
     return this.request<DetectResponse>('/detect', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private detectLocal(text: string, config?: DetectConfig): DetectResponse {
+    const { entities: resolved, threshold } = this.resolvePolicy(config?.policy, config?.entities, config?.score_threshold)
+    const scanner = this.getScanner()
+    const matches = scanner.detect(text, resolved)
+
+    const detected: DetectedEntity[] = []
+    for (const m of matches) {
+      if (threshold != null && m.score < threshold) continue
+      detected.push({ type: m.entityType, text: m.text, start: m.start, end: m.end, score: m.score })
+    }
+
+    return { detected_entities: detected, entities_count: detected.length }
   }
 
   /**
@@ -240,15 +357,35 @@ export class Blindfold {
    *
    * WARNING: Redaction is irreversible - original data cannot be restored!
    *
+   * When no API key is set (or `mode: "local"`), redaction runs locally
+   * using the built-in regex scanner, replacing PII with `<Entity Name>` placeholders.
+   *
    * @param text - Text to redact
    * @param config - Optional configuration (masking_char, entities)
    * @returns Promise with redacted text and detected entities
    */
   async redact(text: string, config?: RedactConfig): Promise<RedactResponse> {
+    if (this.useLocal) {
+      return this.redactLocal(text, config)
+    }
     return this.request<RedactResponse>('/redact', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private redactLocal(text: string, config?: RedactConfig): RedactResponse {
+    const { entities: resolved, threshold } = this.resolvePolicy(config?.policy, config?.entities, config?.score_threshold)
+    const scanner = this.getScanner()
+    const [redactedText, matches] = scanner.redact(text, resolved)
+
+    const detected: DetectedEntity[] = []
+    for (const m of matches) {
+      if (threshold != null && m.score < threshold) continue
+      detected.push({ type: m.entityType, text: m.text, start: m.start, end: m.end, score: m.score })
+    }
+
+    return { text: redactedText, detected_entities: detected, entities_count: detected.length }
   }
 
   /**
@@ -259,24 +396,67 @@ export class Blindfold {
    * @returns Promise with masked text and detected entities
    */
   async mask(text: string, config?: MaskConfig): Promise<MaskResponse> {
+    if (this.useLocal) {
+      return this.maskLocal(text, config)
+    }
     return this.request<MaskResponse>('/mask', 'POST', {
       text,
       ...config,
     })
   }
 
+  private maskLocal(text: string, config?: MaskConfig): MaskResponse {
+    const { entities: resolved, threshold } = this.resolvePolicy(config?.policy, config?.entities, config?.score_threshold)
+    const scanner = this.getScanner()
+    const result = scanner.mask(
+      text,
+      config?.chars_to_show ?? 3,
+      config?.from_end ?? false,
+      config?.masking_char ?? '*',
+      resolved
+    )
+
+    const detected: DetectedEntity[] = result.matches
+      .filter((m) => threshold == null || m.score >= threshold)
+      .map((m) => ({
+        type: m.entityType, text: m.text, start: m.start, end: m.end, score: m.score,
+      }))
+
+    return { text: result.text, detected_entities: detected, entities_count: detected.length }
+  }
+
   /**
    * Synthesize (replace real data with synthetic fake data)
+   *
+   * When no API key is set (or `mode: "local"`), synthesis runs locally
+   * using format-preserving random generation.
    *
    * @param text - Text to synthesize
    * @param config - Optional configuration (language, entities)
    * @returns Promise with synthetic text and detected entities
    */
   async synthesize(text: string, config?: SynthesizeConfig): Promise<SynthesizeResponse> {
+    if (this.useLocal) {
+      return this.synthesizeLocal(text, config)
+    }
     return this.request<SynthesizeResponse>('/synthesize', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private synthesizeLocal(text: string, config?: SynthesizeConfig): SynthesizeResponse {
+    const { entities: resolved, threshold } = this.resolvePolicy(config?.policy, config?.entities, config?.score_threshold)
+    const scanner = this.getScanner()
+    const result = scanner.synthesize(text, undefined, resolved)
+
+    const detected: DetectedEntity[] = result.matches
+      .filter((m) => threshold == null || m.score >= threshold)
+      .map((m) => ({
+        type: m.entityType, text: m.text, start: m.start, end: m.end, score: m.score,
+      }))
+
+    return { text: result.text, detected_entities: detected, entities_count: detected.length }
   }
 
   /**
@@ -287,10 +467,33 @@ export class Blindfold {
    * @returns Promise with hashed text and detected entities
    */
   async hash(text: string, config?: HashConfig): Promise<HashResponse> {
+    if (this.useLocal) {
+      return this.hashLocal(text, config)
+    }
     return this.request<HashResponse>('/hash', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private hashLocal(text: string, config?: HashConfig): HashResponse {
+    const { entities: resolved, threshold } = this.resolvePolicy(config?.policy, config?.entities, config?.score_threshold)
+    const scanner = this.getScanner()
+    const result = scanner.hash(
+      text,
+      config?.hash_type ?? 'sha256',
+      config?.hash_prefix ?? 'HASH_',
+      config?.hash_length ?? 16,
+      resolved
+    )
+
+    const detected: DetectedEntity[] = result.matches
+      .filter((m) => threshold == null || m.score >= threshold)
+      .map((m) => ({
+        type: m.entityType, text: m.text, start: m.start, end: m.end, score: m.score,
+      }))
+
+    return { text: result.text, detected_entities: detected, entities_count: detected.length }
   }
 
   /**
@@ -301,10 +504,30 @@ export class Blindfold {
    * @returns Promise with encrypted text and detected entities
    */
   async encrypt(text: string, config?: EncryptConfig): Promise<EncryptResponse> {
+    if (this.useLocal) {
+      return this.encryptLocal(text, config)
+    }
     return this.request<EncryptResponse>('/encrypt', 'POST', {
       text,
       ...config,
     })
+  }
+
+  private encryptLocal(text: string, config?: EncryptConfig): EncryptResponse {
+    if (!config?.encryption_key) {
+      throw new Error('encryption_key is required for local encryption mode')
+    }
+    const { entities: resolved, threshold } = this.resolvePolicy(config?.policy, config?.entities, config?.score_threshold)
+    const scanner = this.getScanner()
+    const result = scanner.encrypt(text, config.encryption_key, resolved)
+
+    const detected: DetectedEntity[] = result.matches
+      .filter((m) => threshold == null || m.score >= threshold)
+      .map((m) => ({
+        type: m.entityType, text: m.text, start: m.start, end: m.end, score: m.score,
+      }))
+
+    return { text: result.text, detected_entities: detected, entities_count: detected.length }
   }
 
   // ===== Batch methods =====

@@ -64,6 +64,8 @@ Add via Settings > MCP Servers, or in `.cursor/mcp.json`:
 2. Go to **API Keys** and create a new key
 3. Copy the key into your config
 
+> **Note:** The MCP server requires an API key for Cloud API access. For local mode without an API key (80+ regex-based entity types, no data leaves your infrastructure), use the [Python SDK](https://pypi.org/project/blindfold-sdk/) or [JavaScript SDK](https://www.npmjs.com/package/@blindfold/sdk) directly.
+
 ## Available Tools
 
 | Tool | Description |
