@@ -1,4 +1,8 @@
 /.idea/
+.DS_Store
+bin/
+obj/
+.next/
 /packages/js-sdk/node_modules/
 /packages/mcp-server/node_modules/.bin/acorn
 /packages/mcp-server/node_modules/.bin/esbuild
