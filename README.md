@@ -1,10 +1,12 @@
 # Blindfold
 
-Detect, redact, tokenize, and mask PII across Python, JavaScript, Java, CLI, and MCP. 80+ entity types, 30+ countries, works offline with zero dependencies.
+Detect, redact, tokenize, and mask PII across Python, JavaScript, Go, Java, .NET, CLI, and MCP. 80+ entity types, 30+ countries, works offline with zero dependencies.
 
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/@blindfold/sdk)](https://www.npmjs.com/package/@blindfold/sdk)
 [![PyPI version](https://img.shields.io/pypi/v/blindfold-sdk)](https://pypi.org/project/blindfold-sdk/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/blindfold-dev/Blindfold/packages/go-sdk.svg)](https://pkg.go.dev/github.com/blindfold-dev/Blindfold/packages/go-sdk)
+[![NuGet version](https://img.shields.io/nuget/v/Blindfold.Sdk)](https://www.nuget.org/packages/Blindfold.Sdk)
 
 ## Why Blindfold?
 
@@ -15,7 +17,7 @@ Detect, redact, tokenize, and mask PII across Python, JavaScript, Java, CLI, and
 - **8 operations**: detect, redact, tokenize, detokenize, mask, hash, encrypt, synthesize
 - **Compliance-ready** — Built-in GDPR, HIPAA, PCI-DSS policies
 - **Optional NLP upgrade** — Add API key to detect names, addresses, organizations (60+ additional entities)
-- **5 packages**: Python SDK, JS/TS SDK, Java SDK, CLI, MCP Server
+- **7 packages**: Python SDK, JS/TS SDK, Go SDK, Java SDK, .NET SDK, CLI, MCP Server
 
 ## Quick Comparison
 
@@ -43,7 +45,9 @@ Detect, redact, tokenize, and mask PII across Python, JavaScript, Java, CLI, and
 |---------|---------|------|
 | [Python SDK](packages/python-sdk) | `pip install blindfold-sdk` | [README](packages/python-sdk/README.md) |
 | [JS/TS SDK](packages/js-sdk) | `npm install @blindfold/sdk` | [README](packages/js-sdk/README.md) |
+| [Go SDK](packages/go-sdk) | `go get github.com/blindfold-dev/Blindfold/packages/go-sdk` | [README](packages/go-sdk/README.md) |
 | [Java SDK](packages/java-sdk) | `dev.blindfold:blindfold-sdk:1.0.0` | [README](packages/java-sdk/README.md) |
+| [.NET SDK](packages/dotnet-sdk) | `dotnet add package Blindfold.Sdk` | [README](packages/dotnet-sdk/README.md) |
 | [CLI](packages/cli) | `npm install -g @blindfold/cli` | [README](packages/cli/README.md) |
 | [MCP Server](packages/mcp-server) | `npx -y @blindfold/mcp-server` | [README](packages/mcp-server/README.md) |
 
@@ -108,6 +112,59 @@ for (DetectedEntity entity : result.getDetectedEntities()) {
 // Redact PII locally
 RedactResponse redacted = client.redact("Email john@acme.com, SSN 123-45-6789");
 System.out.println(redacted.getText());
+```
+
+### Go
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+
+    blindfold "github.com/blindfold-dev/Blindfold/packages/go-sdk"
+)
+
+func main() {
+    client := blindfold.New()
+    ctx := context.Background()
+
+    // Detect PII locally — no API key, no network call
+    result, _ := client.Detect(ctx, "Email john@acme.com, SSN 123-45-6789")
+    for _, entity := range result.DetectedEntities {
+        fmt.Printf("%s: %s (score: %.2f)\n", entity.Type, entity.Text, entity.Score)
+    }
+    // Email Address: john@acme.com (score: 0.95)
+    // Social Security Number: 123-45-6789 (score: 1.00)
+
+    // Redact PII locally
+    redacted, _ := client.Redact(ctx, "Email john@acme.com, SSN 123-45-6789")
+    fmt.Println(redacted.Text)
+    // "Email, SSN"
+}
+```
+
+### C# / .NET
+
+```csharp
+using Blindfold.Sdk;
+
+using var client = new BlindfoldClient();
+
+// Detect PII locally — no API key, no network call
+var result = await client.DetectAsync("Email john@acme.com, SSN 123-45-6789");
+foreach (var entity in result.DetectedEntities)
+{
+    Console.WriteLine($"{entity.Type}: {entity.Text} (score: {entity.Score:F2})");
+}
+// Email Address: john@acme.com (score: 0.95)
+// Social Security Number: 123-45-6789 (score: 1.00)
+
+// Redact PII locally
+var redacted = await client.RedactAsync("Email john@acme.com, SSN 123-45-6789");
+Console.WriteLine(redacted.Text);
+// "Email, SSN"
 ```
 
 ### CLI
